@@ -1,0 +1,199 @@
+/* Сброс */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  a:link {
+    color: #0000cc;
+  }
+  
+  a:visited {
+    color: #660099;
+  }
+  
+  a:hover {
+    text-decoration: none;
+  }
+  
+  a:active {
+    color: #ff0000;
+  }
+  
+  /* Страница */
+  body {
+    font-family: "Verdana", "Tahoma", "Arial", sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+    background-color: #e0e0e0;
+    color: #000000;
+  }
+  
+  /* Общий контейнер */
+  main,
+  header,
+  footer {
+    width: 800px;
+    margin: 0 auto;
+  }
+  
+  /* Шапка */
+  body > header {
+    background-color: #ffffff;
+    border: 1px solid #999999;
+    margin-top: 20px;
+    padding: 10px;
+  }
+  
+  header h1 {
+    font-size: 24px;
+    margin-bottom: 5px;
+  }
+  
+  header p {
+    font-size: 11px;
+    color: #555555;
+  }
+  
+  /* Меню */
+  nav {
+    margin-top: 10px;
+    padding-top: 5px;
+    border-top: 1px dotted #cccccc;
+  }
+  
+  nav a {
+    margin-right: 15px;
+    color: #0000cc;
+    text-decoration: underline;
+  }
+  
+  /* Основная область */
+  main {
+    background-color: #ffffff;
+    border: 1px solid #999999;
+    padding: 10px;
+    margin-top: 5px;
+    display: flex;
+    position: relative;
+  }
+  
+  /* Левая колонка (статьи) */
+  main > section {
+    width: 540px;
+    margin-right: 10px;
+  }
+  
+  /* Правая колонка (aside) */
+  aside {
+    width: 230px;
+    font-size: 12px;
+    border-left: 1px dotted #cccccc;
+    padding-left: 10px;
+  }
+
+  aside ul li{
+    margin-left: 15px;
+  }
+  
+  /* Статьи */
+  section h2 {
+    font-size: 16px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #cccccc;
+  }
+  
+  article > header {
+    margin-top: 20px;
+    padding: 10px;
+  } 
+
+  article {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #cccccc;
+  }
+  
+  /* У последней статьи снизу линию уберём */
+  section > article:last-of-type {
+    border-bottom: none;
+  }
+  
+  article header h3 {
+    font-size: 14px;
+    margin-bottom: 3px;
+  }
+  
+  article header p {
+    font-size: 11px;
+    color: #666666;
+  }
+  
+  article p {
+    margin-bottom: 8px;
+  }
+  
+  /* Футер статьи */
+  article footer {
+    font-size: 11px;
+    color: #555555;
+  }
+
+  /* Ссылки внутри текста */
+  a {
+    color: #0000cc;
+  }
+  
+  /* Форма комментариев (на странице поста) */
+  form p {
+    margin-bottom: 8px;
+  }
+  
+  input[type="text"],
+  textarea {
+    width: 100%;
+    border: 1px solid #999999;
+    padding: 3px;
+    font-family: inherit;
+    font-size: 13px;
+  }
+  
+  button {
+    padding: 3px 10px;
+    border: 1px solid #333333;
+    background-color: #dddddd;
+    cursor: pointer;
+  }
+  
+  /* Нижний колонтитул */
+  footer {
+    width: 800px;
+    margin: 5px auto 20px auto;
+    text-align: center;
+    font-size: 11px;
+    color: #555555;
+  }
+
+  button {
+    padding: 3px 10px;
+    border: 1px solid #333333;
+    background-color: #dddddd;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  
+  /* Наведение */
+  button:hover {
+    background-color: #eeeeee;
+  }
+  
+  /* Нажатие (момент клика) */
+  button:active {
+    background-color: #cccccc;
+    border-color: #000000;
+  }
+
+  #comments-form {
+    margin-left: 20px;
+  }
