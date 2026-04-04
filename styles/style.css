@@ -202,3 +202,8 @@
   #comments-form {
     margin-left: 20px;
   }
+
+  #date{
+    font-size: 11px;
+    color: #555555;
+  }
