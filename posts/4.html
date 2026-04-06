@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <link rel="stylesheet" href="../styles/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Домен и путь к нему</title>
+</head>
+<body>
+    <header>
+      <h1>Кабаньи сводки</h1>
+      <p>личный блог | МАХимально уютно | Telegramмам - нет | HTML - будет жить</p>
+      <nav>
+        <a href="../index.html">На главную</a>
+        <a href="../pages/underConstruction.html">Архив</a>
+        <a href="../pages/underConstruction.html">Пара слов об авторе</a>
+        <a href="../pages/underConstruction.html">Under construction...</a>
+      </nav>
+    </header>
+    <main>
+        <section>
+            <article>
+                <h2>Домен и путь к нему</h2>
+                <p id="date">07.04.2026 вторник 00:24</p>
+                <h3>А когда лайки-то работать будут?</h3>
+                <p>
+                    Вчера благодаря вот <a href="https://t.me/mkrkru" target="_blank" rel="noopener noreferrer">этому</a> чудесному человеку у меня появился купленный домен. В скором времени, я надеюсь, получится полноценно водрузить на него сайт, после чего уже думать в сторону всякого PHP и прочей <a href="../archive/veryFunnySQLmeme.jpeg" target="_blank" rel="noopener noreferrer">порнографии</a>.<br>
+                    <br>
+                    На самом деле, если бы не сей добрый джентельмен, я бы по сей момент сидел в тщетных попытках оплатить домен криптой, не желая деанонить свой сайт. Остается минимальная настройка DNS и можно будет <s>выблёвывать</s> выкладывать сайт на домен. =Ждем=
+                </p>
+                <footer>
+                    <p>
+                        Мне нравится: <span id="likes-count">0</span> |
+                        Отстой: <span id="dislikes-count">0</span>
+                    </p>
+                    <p>
+                        <button type="button" id="like-btn">Мне нравится</button>
+                        <button type="button" id="dislike-btn">Отстой</button>
+                    </p>
+                    <a href="../index.html">На главную</a>
+                </footer>
+            </article>
+        </section>
+        <section>
+            <h3>Оставить комментарий к посту</h3>
+            <form action="#" method="post" id="comment-form">
+              <p>
+                <label for="nickname">Ник:</label><br>
+                <input type="text" id="nickname" name="nickname">
+              </p>
+              <p>
+                <label for="comment">Комментарий:</label><br>
+                <textarea id="comment" name="comment" rows="6" cols="40"></textarea>
+              </p>
+              <p>
+                <button type="submit">Отправить</button>
+              </p>
+            </form>
+            <h3>Комментарии</h3>
+            <form id="comments-form">
+                <ul id="comments-list"></ul>
+            </form>
+        </section>
+    </main>
+    <footer>
+    <p>© 2026 Caban Reports</p>
+    </footer>
+    <script src="../scripts/script.js"></script>
+</body>
+</html>
