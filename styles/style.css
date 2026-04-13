@@ -207,3 +207,8 @@
     font-size: 11px;
     color: #555555;
   }
+
+  .emoji {
+    display: inline-block;
+    vertical-align: text-bottom; /* или text-bottom */
+  }

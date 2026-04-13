@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <link rel="stylesheet" href="../styles/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>В ожидании DNSа...</title>
+</head>
+<body>
+    <header>
+      <h1>Кабаньи сводки</h1>
+      <p>личный блог | МАХимально уютно | Telegramмам - нет | HTML - будет жить</p>
+      <nav>
+        <a href="../index.html">На главную</a>
+        <a href="../pages/underConstruction.html">Архив</a>
+        <a href="../pages/aboutAuthor.html">Пара слов об авторе</a>
+        <a href="../pages/underConstruction.html">Under construction...</a>
+      </nav>
+    </header>
+    <main>
+        <section>
+            <article>
+                <h2>В ожидании DNSа...</h2>
+                <p id="date">14.04.2026 вторник 1:37</p>
+                <h3>Колобки???</h3>
+                <p>
+                    И снова привет, Интернет. Нетрудно заметить, что настройка собственного домена несколько затягивается,
+                    что не может не огорчать, но чтобы моя немногочисленная, но многоуважаемая публика не скучала,
+                    поделюсь новостями сайта и некоторыми мыслями,
+                    которые посетили мою голову за время с последней публикации. <br><br>
+                    Сперва, смотрите, кто у нас теперь на сайте есть! <img src="../media/smiles/preved.gif" class="emoji"><br>
+                    Эти ребята теперь будут у нас ответственны за так называемый "<i>вайб</i>". Я буду их добавлять достаточно много,
+                    поэтому привыкайте.<br>В конце концов, это стиль сайта<img src="../media/smiles/pardon.gif" class="emoji">.
+                    Они немного ломают форматирование, но, блин, ради таких крутых чувачков можно потерпеть<br><br>
+                    Теперь по поводу мыслей о сайте. В настоящий момент я начинаю прорабатывать регистрацию пользователей на сайте.
+                    Соответственно, в недалёком будущем у нас наконец-то заработает секция комментариев, а также оценки под статейками.
+                    Пока я думаю сделать комменты полностью анонимными, хотя это еще не окончательно решено. Забавно, что читатели
+                    никак не в силах повлиять на это решение, так как обратная связь не работает <img src="../media/smiles/to_pick_ones_nose.gif" class="emoji">.
+                    Но если вдруг у вас есть свой взгляд на это, вы можете... Отправить мне телеграмму... 
+                    Не знаю, что еще в ближайшем будущем будет работать. В <a href="https://ru.wikipedia.org/wiki/%D0%A4%D0%B8%D0%B4%D0%BE%D0%BD%D0%B5%D1%82" target="_blank" rel="noopener noreferrer">Фидонете</a> пора регистрироваться...
+                    Что, кстати, думаете, по поводу раздела "Форум" на сайте? Будет небольшой уголок для анонимного общения.
+                    Пришлите мне что ль голубя почтового со своими мыслями на этот счет. А на сегодня все!<img src="../media/smiles/bye.gif" class="emoji">
+                </p>
+                <footer>
+                    <p>
+                        Мне нравится: <span id="likes-count">0</span> |
+                        Отстой: <span id="dislikes-count">0</span>
+                    </p>
+                    <p>
+                        <button type="button" id="like-btn">Мне нравится</button>
+                        <button type="button" id="dislike-btn">Отстой</button>
+                    </p>
+                    <a href="../index.html">На главную</a>
+                </footer>
+            </article>
+        </section>
+        <section>
+            <h3>Оставить комментарий к посту</h3>
+            <form action="#" method="post" id="comment-form">
+              <p>
+                <label for="nickname">Ник:</label><br>
+                <input type="text" id="nickname" name="nickname">
+              </p>
+              <p>
+                <label for="comment">Комментарий:</label><br>
+                <textarea id="comment" name="comment" rows="6" cols="40"></textarea>
+              </p>
+              <p>
+                <button type="submit">Отправить</button>
+              </p>
+            </form>
+            <h3>Комментарии</h3>
+            <form id="comments-form">
+                <ul id="comments-list"></ul>
+            </form>
+        </section>
+    </main>
+    <footer>
+    <p>© 2026 Caban Reports</p>
+    </footer>
+    <script src="../scripts/script.js"></script>
+</body>
+</html>
