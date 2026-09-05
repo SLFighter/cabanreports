@@ -212,3 +212,29 @@
     display: inline-block;
     vertical-align: text-bottom; /* или text-bottom */
   }
+
+  #reg_message {
+    margin-top: 12px;
+    padding: 6px 10px;
+    font-size: 13px;
+    display: none;
+    border: 1px solid;
+  }
+
+  #reg_message.success {
+    background: #ddffdd;
+    border-color: #229922;
+    color: #115511;
+  }
+
+  #reg_message.error {
+    background: #ffdddd;
+    border-color: #cc2222;
+    color: #880000;
+  }
+
+  #reg_message.loading {
+    background: #eeeeff;
+    border-color: #3333aa;
+    color: #111166;
+  }
