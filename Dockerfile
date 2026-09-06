@@ -22,6 +22,7 @@ COPY posts ./posts
 COPY scripts ./scripts
 COPY styles ./styles
 COPY media ./media
+COPY archive ./archive
 
 RUN mkdir -p /data && chown -R app:app /app /data
 USER app

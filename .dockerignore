@@ -1,6 +1,5 @@
 .git
 account
-archive
 server/node_modules
 server/data.sqlite
 server/data.sqlite-shm
