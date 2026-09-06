@@ -1,0 +1,3 @@
+[cabanreports] сервер: http://localhost:3000
+[cabanreports] верификация: none
+[tgbot] TELEGRAM_BOT_TOKEN не задан — бот спит (это нормально для REQUIRE_VERIFICATION=none)
