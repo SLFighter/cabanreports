@@ -1,0 +1,10 @@
+.git
+account
+archive
+server/node_modules
+server/data.sqlite
+server/data.sqlite-shm
+server/data.sqlite-wal
+server/.env
+server/server.log
+server/server.err.log
