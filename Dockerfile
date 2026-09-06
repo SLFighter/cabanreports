@@ -20,6 +20,7 @@ COPY scripts ./scripts
 COPY styles ./styles
 COPY media ./media
 COPY archive ./archive
+COPY nicks.csv ./nicks.csv
 
 RUN chown -R app:app /app
 USER app

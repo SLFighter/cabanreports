@@ -3,3 +3,7 @@ account
 # --- Сервер ---
 server/node_modules/
 server/.env
+
+server/data.sqlite
+server/data.sqlite-shm
+server/data.sqlite-wal
