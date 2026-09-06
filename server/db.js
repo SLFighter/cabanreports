@@ -91,6 +91,15 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_pending_expires ON pending_registrations (expires_at);
 `);
 
+// ---------- Миграции ----------
+// Добавляем anon_nick в users, если колонки нет (для существующих БД)
+{
+  const cols = db.pragma('table_info(users)');
+  if (!cols.some((c) => c.name === 'anon_nick')) {
+    db.exec('ALTER TABLE users ADD COLUMN anon_nick TEXT');
+  }
+}
+
 // ---------- Пароли (scrypt, встроенный crypto) ----------
 
 function hashPassword(password, salt) {
@@ -153,7 +162,7 @@ const stmts = {
      VALUES (?, ?, datetime('now', ?))`
   ),
   sessionGet: db.prepare(
-    `SELECT s.token_hash, s.expires_at, u.id AS user_id, u.username
+    `SELECT s.token_hash, s.expires_at, u.id AS user_id, u.username, u.anon_nick
      FROM sessions s JOIN users u ON u.id = s.user_id
      WHERE s.token_hash = ? AND s.expires_at > datetime('now')`
   ),
@@ -173,7 +182,7 @@ const stmts = {
 
   // комментарии
   commentsList: db.prepare(
-    `SELECT id, display_name, text, created_at FROM comments
+    `SELECT id, user_id, display_name, text, created_at FROM comments
      WHERE page_id = ? ORDER BY id ASC LIMIT 500`
   ),
   commentInsert: db.prepare(
@@ -186,6 +195,12 @@ const stmts = {
   commentGetById: db.prepare(
     `SELECT id, display_name, text, created_at FROM comments WHERE id = ?`
   ),
+  commentDeleteByAuthor: db.prepare(
+    'DELETE FROM comments WHERE id = ? AND user_id = ?'
+  ),
+
+  // пользователь
+  userSetAnonNick: db.prepare('UPDATE users SET anon_nick = ? WHERE id = ?'),
 
   // реакции: агрегаты + голос пользователя
   reactionCounts: db.prepare(

@@ -17,30 +17,52 @@
 require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 
 const path = require('path');
+const fs = require('fs');
 const crypto = require('crypto');
 const express = require('express');
 const { stmts, createUser, verifyPassword, hashPassword } = require('./db');
 const { startBot } = require('./tgbot');
 
-const app = express();
+// ---------- Анонимные ники ----------
+const NICKS_FILE = path.join(__dirname, '..', 'nicks.csv');
+var anonNicks = null;
+function loadAnonNicks() {
+  if (anonNicks) return anonNicks;
+  try {
+    var raw = fs.readFileSync(NICKS_FILE, 'utf8');
+    anonNicks = raw.split(/\r?\n/).map(function (s) { return s.trim(); })
+      .filter(function (s) { return s && !/^name$/i.test(s); });
+  } catch (e) {
+    console.error('[nicks] не удалось прочитать', NICKS_FILE, e.message);
+    anonNicks = [];
+  }
+  return anonNicks;
+}
+function pickAnonNick() {
+  var nicks = loadAnonNicks();
+  if (!nicks.length) return null;
+  return nicks[Math.floor(Math.random() * nicks.length)];
+}
+
+var app = express();
 app.disable('x-powered-by');
 app.use(express.json({ limit: '10kb' }));
 
 // ---------- Конфиг ----------
 
-const PORT = Number(process.env.PORT) || 3000;
-const REQUIRE_VERIFICATION = (process.env.REQUIRE_VERIFICATION || 'none').toLowerCase(); // none | telegram | email
-const REGISTRATIONS_PER_IP_PER_DAY = Number(process.env.REGISTRATIONS_PER_IP_PER_DAY) || 3;
-const SESSION_TTL_DAYS = Number(process.env.SESSION_TTL_DAYS) || 30;
-const LOGIN_ATTEMPTS_WINDOW = 15 * 60 * 1000; // 15 минут
-const LOGIN_MAX_ATTEMPTS = 10;
-const COOKIE_NAME = 'caban_sid';
-const POW_DIFFICULTY_BITS = Number(process.env.POW_DIFFICULTY_BITS) || 19;
-const POW_CHALLENGE_TTL_MS = 10 * 60 * 1000;
-const USERNAME_MIN = 3;
-const USERNAME_MAX = 20;
-const USERNAME_RE = /^[A-Za-z0-9_-]+$/;
-const RESERVED_NAMES = new Set([
+var PORT = Number(process.env.PORT) || 3000;
+var REQUIRE_VERIFICATION = (process.env.REQUIRE_VERIFICATION || 'none').toLowerCase(); // none | telegram | email
+var REGISTRATIONS_PER_IP_PER_DAY = Number(process.env.REGISTRATIONS_PER_IP_PER_DAY) || 3;
+var SESSION_TTL_DAYS = Number(process.env.SESSION_TTL_DAYS) || 30;
+var LOGIN_ATTEMPTS_WINDOW = 15 * 60 * 1000; // 15 минут
+var LOGIN_MAX_ATTEMPTS = 10;
+var COOKIE_NAME = 'caban_sid';
+var POW_DIFFICULTY_BITS = Number(process.env.POW_DIFFICULTY_BITS) || 19;
+var POW_CHALLENGE_TTL_MS = 10 * 60 * 1000;
+var USERNAME_MIN = 3;
+var USERNAME_MAX = 20;
+var USERNAME_RE = /^[A-Za-z0-9_-]+$/;
+var RESERVED_NAMES = new Set([
   'admin', 'administrator', 'moderator', 'mod', 'root', 'support', 'system',
   'caban', 'cabanreports', 'reports', 'author', 'official', 'help', 'security',
 ]);
@@ -50,32 +72,32 @@ const RESERVED_NAMES = new Set([
 function getClientIpHash(req) {
   // ЗАДЕЛ НА БУДУЩЕЕ: за реверс-прокси смотреть в X-Forwarded-For.
   // Сейчас сервер торчит наружу напрямую — берем socket-адрес.
-  const ip = req.socket.remoteAddress || 'unknown';
-  const secret = process.env.IP_HASH_SECRET || 'dev-secret-change-me';
-  return crypto.createHash('sha256').update(`${secret}:${ip}`).digest('hex');
+  var ip = req.socket.remoteAddress || 'unknown';
+  var secret = process.env.IP_HASH_SECRET || 'dev-secret-change-me';
+  return crypto.createHash('sha256').update(secret + ':' + ip).digest('hex');
 }
 
 function rateLimitExceeded(ipHash) {
-  const day = new Date().toISOString().slice(0, 10);
+  var day = new Date().toISOString().slice(0, 10);
   stmts.rlCleanup.run();
-  const row = stmts.rlGet.get(ipHash, day);
+  var row = stmts.rlGet.get(ipHash, day);
   return Boolean(row && row.count >= REGISTRATIONS_PER_IP_PER_DAY);
 }
 
 function bumpRateLimit(ipHash) {
-  const day = new Date().toISOString().slice(0, 10);
+  var day = new Date().toISOString().slice(0, 10);
   stmts.rlUpsert.run(ipHash, day);
 }
 
 /** Окно брутфорс-лимита: 15-минутные слоты, округленные от текущего времени */
 function attemptWindow() {
-  const windowMs = Math.floor(Date.now() / LOGIN_ATTEMPTS_WINDOW) * LOGIN_ATTEMPTS_WINDOW;
+  var windowMs = Math.floor(Date.now() / LOGIN_ATTEMPTS_WINDOW) * LOGIN_ATTEMPTS_WINDOW;
   return new Date(windowMs).toISOString().replace('T', ' ').slice(0, 19);
 }
 
 function loginAttemptsExceeded(ipHash) {
   stmts.laCleanup.run();
-  const row = stmts.laGet.get(ipHash, attemptWindow());
+  var row = stmts.laGet.get(ipHash, attemptWindow());
   return Boolean(row && row.count >= LOGIN_MAX_ATTEMPTS);
 }
 
@@ -86,58 +108,58 @@ function bumpLoginAttempts(ipHash) {
 // ---------- Сессии ----------
 
 function parseCookies(req) {
-  const header = req.headers.cookie || '';
-  const out = {};
-  for (const part of header.split(';')) {
-    const i = part.indexOf('=');
+  var header = req.headers.cookie || '';
+  var out = {};
+  for (var part of header.split(';')) {
+    var i = part.indexOf('=');
     if (i > 0) out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim());
   }
   return out;
 }
 
 function createSession(res, userId, remember) {
-  const token = crypto.randomBytes(32).toString('hex');
-  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-  const ttl = `+${SESSION_TTL_DAYS} days`;
+  var token = crypto.randomBytes(32).toString('hex');
+  var tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  var ttl = '+' + SESSION_TTL_DAYS + ' days';
   stmts.sessionInsert.run(tokenHash, userId, ttl);
   // remember=false -> сессионная cookie (умрет с браузером); true -> 30 дней
-  const cookieOpts = [
-    `${COOKIE_NAME}=${token}`,
+  var cookieOpts = [
+    COOKIE_NAME + '=' + token,
     'Path=/',
     'HttpOnly',
     'SameSite=Lax',
-    remember ? `Max-Age=${SESSION_TTL_DAYS * 24 * 3600}` : '',
+    remember ? 'Max-Age=' + (SESSION_TTL_DAYS * 24 * 3600) : '',
   ].filter(Boolean).join('; ');
   res.setHeader('Set-Cookie', cookieOpts);
 }
 
 function destroySession(req, res) {
-  const token = parseCookies(req)[COOKIE_NAME];
+  var token = parseCookies(req)[COOKIE_NAME];
   if (token) {
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    var tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     stmts.sessionDelete.run(tokenHash);
   }
-  res.setHeader('Set-Cookie', `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
+  res.setHeader('Set-Cookie', COOKIE_NAME + '=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');
 }
 
 function getSessionUser(req) {
-  const token = parseCookies(req)[COOKIE_NAME];
+  var token = parseCookies(req)[COOKIE_NAME];
   if (!token) return null;
-  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-  const row = stmts.sessionGet.get(tokenHash);
+  var tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  var row = stmts.sessionGet.get(tokenHash);
   if (!row) return null;
   // Продлеваем сессию при активности (скользящее окно)
-  stmts.sessionExtend.run(`+${SESSION_TTL_DAYS} days`, tokenHash);
-  return { userId: row.user_id, username: row.username };
+  stmts.sessionExtend.run('+' + SESSION_TTL_DAYS + ' days', tokenHash);
+  return { userId: row.user_id, username: row.username, anonNick: row.anon_nick };
 }
 
 function validateUsername(raw) {
-  const username = String(raw || '').trim();
+  var username = String(raw || '').trim();
   if (username.length < USERNAME_MIN) {
-    return { error: `Ник должен быть не короче ${USERNAME_MIN} символов` };
+    return { error: 'Ник должен быть не короче ' + USERNAME_MIN + ' символов' };
   }
   if (username.length > USERNAME_MAX) {
-    return { error: `Ник должен быть не длиннее ${USERNAME_MAX} символов` };
+    return { error: 'Ник должен быть не длиннее ' + USERNAME_MAX + ' символов' };
   }
   if (!USERNAME_RE.test(username)) {
     return { error: 'Ник может содержать только латиницу, цифры, "_" и "-"' };
@@ -148,7 +170,7 @@ function validateUsername(raw) {
   if (stmts.getUserByName.get(username)) {
     return { error: 'Ник уже занят' };
   }
-  return { username };
+  return { username: username };
 }
 
 // ---------- PoW (hashcash) ----------
@@ -158,11 +180,11 @@ function validateUsername(raw) {
  * id -> { prefix, difficulty, expires, used }
  * @type {Map<string, {prefix:string, difficulty:number, expires:number, used:boolean}>}
  */
-const challenges = new Map();
+var challenges = new Map();
 
 function pruneChallenges() {
-  const now = Date.now();
-  for (const [id, ch] of challenges) {
+  var now = Date.now();
+  for (var [id, ch] of challenges) {
     if (ch.expires < now) challenges.delete(id);
   }
 }
@@ -170,9 +192,9 @@ setInterval(pruneChallenges, 60 * 1000).unref();
 
 /** Число ведущих нулевых бит hex-строки */
 function leadingZeroBits(hex) {
-  let bits = 0;
-  for (const c of hex) {
-    const v = parseInt(c, 16);
+  var bits = 0;
+  for (var c of hex) {
+    var v = parseInt(c, 16);
     if (v === 0) { bits += 4; continue; }
     if (v < 2) bits += 3; else if (v < 4) bits += 2; else if (v < 8) bits += 1;
     break;
@@ -183,18 +205,18 @@ function leadingZeroBits(hex) {
 /** Проверка решения PoW: sha256(prefix:nonce) должен иметь >= difficulty нулевых бит */
 function verifyPow(prefix, nonce, difficulty) {
   if (!Number.isInteger(nonce) || nonce < 0 || nonce > Number.MAX_SAFE_INTEGER) return false;
-  const digest = crypto.createHash('sha256').update(`${prefix}:${nonce}`).digest('hex');
+  var digest = crypto.createHash('sha256').update(prefix + ':' + nonce).digest('hex');
   return leadingZeroBits(digest) >= difficulty;
 }
 
 // ---------- API ----------
 
 // Выдать PoW-челлендж
-app.get('/api/auth/challenge', (req, res) => {
+app.get('/api/auth/challenge', function (req, res) {
   pruneChallenges();
-  const id = crypto.randomBytes(16).toString('hex');
-  const challenge = {
-    id,
+  var id = crypto.randomBytes(16).toString('hex');
+  var challenge = {
+    id: id,
     difficulty: POW_DIFFICULTY_BITS, // сколько ведущих нулевых бит искать
     prefix: crypto.randomBytes(8).toString('hex'),
   };
@@ -208,15 +230,15 @@ app.get('/api/auth/challenge', (req, res) => {
 });
 
 // Проверка ника (живая, при вводе)
-app.get('/api/auth/username-check', (req, res) => {
-  const { error } = validateUsername(req.query.u);
-  if (error) return res.json({ ok: false, error });
+app.get('/api/auth/username-check', function (req, res) {
+  var { error } = validateUsername(req.query.u);
+  if (error) return res.json({ ok: false, error: error });
   res.json({ ok: true });
 });
 
 // Регистрация
-app.post('/api/auth/register', (req, res) => {
-  const body = req.body || {};
+app.post('/api/auth/register', function (req, res) {
+  var body = req.body || {};
 
   // 1) Honeypot: люди это скрытое поле не видят и не заполняют
   if (body.website) {
@@ -224,14 +246,14 @@ app.post('/api/auth/register', (req, res) => {
   }
 
   // 2) Время заполнения: человек не отправит форму быстрее 3 секунд
-  const elapsed = Date.now() - Number(body.formLoadedAt || 0);
+  var elapsed = Date.now() - Number(body.formLoadedAt || 0);
   if (!Number.isFinite(elapsed) || elapsed < 3000) {
     return res.status(400).json({ detail: 'Слишком быстро. Так делают только боты.' });
   }
 
   // 3) PoW: браузер должен был честно посчитать хеши
-  const chId = String(body.pow_id || '');
-  const ch = challenges.get(chId);
+  var chId = String(body.pow_id || '');
+  var ch = challenges.get(chId);
   if (!ch) {
     return res.status(400).json({ detail: 'Челлендж не найден или устарел — обнови страницу' });
   }
@@ -246,19 +268,19 @@ app.post('/api/auth/register', (req, res) => {
   // 4) Rate limit по IP (хранится только хеш IP, не сам IP).
   //    Проверяем сразу, а увеличиваем счетчик только при успешной регистрации,
   //    чтобы кривые запросы не сжигали лимит.
-  const ipHash = getClientIpHash(req);
+  var ipHash = getClientIpHash(req);
   if (rateLimitExceeded(ipHash)) {
     return res.status(429).json({ detail: 'Слишком много регистраций с этого адреса. Попробуй завтра.' });
   }
 
   // 5) Ник
-  const { username, error: nameError } = validateUsername(body.username);
+  var { username, error: nameError } = validateUsername(body.username);
   if (nameError) {
     return res.status(400).json({ detail: nameError });
   }
 
   // 6) Пароль
-  const password = String(body.password || '');
+  var password = String(body.password || '');
   if (password.length < 6) {
     return res.status(400).json({ detail: 'Пароль должен быть не короче 6 символов' });
   }
@@ -270,7 +292,7 @@ app.post('/api/auth/register', (req, res) => {
   try {
     if (REQUIRE_VERIFICATION === 'none') {
       bumpRateLimit(ipHash);
-      const user = createUser(username, password);
+      var user = createUser(username, password);
       return res.status(201).json({
         status: 'instant',
         message: 'Регистрация завершена',
@@ -279,9 +301,9 @@ app.post('/api/auth/register', (req, res) => {
     }
 
     // ЗАДЕЛ: telegram | email — заявка с одноразовым кодом (20 минут)
-    const { hashPassword } = require('./db');
-    const { salt, hash } = hashPassword(password);
-    const code = [
+    var { hashPassword } = require('./db');
+    var { salt, hash } = hashPassword(password);
+    var code = [
       crypto.randomBytes(2).toString('hex').toUpperCase(),
       crypto.randomBytes(2).toString('hex').toUpperCase(),
       crypto.randomBytes(2).toString('hex').toUpperCase(),
@@ -290,7 +312,7 @@ app.post('/api/auth/register', (req, res) => {
     bumpRateLimit(ipHash);
     return res.status(202).json({
       status: 'pending',
-      code,
+      code: code,
       message: REQUIRE_VERIFICATION === 'telegram'
         ? 'Подтверди регистрацию в Telegram-боте'
         : 'Подтверди регистрацию по email',
@@ -305,9 +327,9 @@ app.post('/api/auth/register', (req, res) => {
 });
 
 // Статус заявки (polling; понадобится для telegram/email верификации)
-app.post('/api/auth/register/status', (req, res) => {
-  const code = String((req.body || {}).code || '');
-  const row = stmts.getPendingByCode.get(code);
+app.post('/api/auth/register/status', function (req, res) {
+  var code = String((req.body || {}).code || '');
+  var row = stmts.getPendingByCode.get(code);
   if (!row) {
     return res.json({ status: 'not_found' });
   }
@@ -320,27 +342,27 @@ app.post('/api/auth/register/status', (req, res) => {
 // ---------- Вход / выход / текущий пользователь ----------
 
 // Вход: ник + пароль -> cookie сессии
-app.post('/api/auth/login', (req, res) => {
-  const body = req.body || {};
-  const username = String(body.username || '').trim();
-  const password = String(body.password || '');
-  const remember = Boolean(body.remember);
+app.post('/api/auth/login', function (req, res) {
+  var body = req.body || {};
+  var username = String(body.username || '').trim();
+  var password = String(body.password || '');
+  var remember = Boolean(body.remember);
 
-  const ipHash = getClientIpHash(req);
+  var ipHash = getClientIpHash(req);
 
   // Брутфорс-лимит: 10 неудач за 15 минут с одного IP
   if (loginAttemptsExceeded(ipHash)) {
     return res.status(429).json({ detail: 'Слишком много попыток входа. Подожди четверть часа.' });
   }
 
-  const user = stmts.getUserByName.get(username);
+  var user = stmts.getUserByName.get(username);
 
   // ВАЖНО: даже если ника нет — гоняем scrypt с фейковой солью,
   // чтобы время ответа не раскрывало существование ника.
   if (!user) {
     hashPassword(password, 'timing-equalizer-salt');
   }
-  const ok = user ? verifyPassword(password, user.password_salt, user.password_hash) : false;
+  var ok = user ? verifyPassword(password, user.password_salt, user.password_hash) : false;
   if (!ok) {
     bumpLoginAttempts(ipHash);
     // Одна и та же ошибка и для неверного пароля, и для несуществующего ника
@@ -352,14 +374,14 @@ app.post('/api/auth/login', (req, res) => {
 });
 
 // Текущий пользователь (для шапки сайта)
-app.get('/api/auth/me', (req, res) => {
-  const user = getSessionUser(req);
-  if (!user) return res.json({ username: null });
-  return res.json({ username: user.username });
+app.get('/api/auth/me', function (req, res) {
+  var user = getSessionUser(req);
+  if (!user) return res.json({ username: null, id: null });
+  return res.json({ username: user.username, id: user.userId });
 });
 
 // Выход
-app.post('/api/auth/logout', (req, res) => {
+app.post('/api/auth/logout', function (req, res) {
   destroySession(req, res);
   return res.json({ ok: true });
 });
@@ -368,29 +390,39 @@ app.post('/api/auth/logout', (req, res) => {
 
 // page_id из URL запроса: только безопасные символы
 function pageIdFromRequest(raw) {
-  const pageId = String(raw || '').replace(/^\/+|\/+$/g, '');
+  var pageId = String(raw || '').replace(/^\/+|\/+$/g, '');
   if (!pageId || pageId.length > 128 || !/^[A-Za-z0-9._-]+$/.test(pageId)) return null;
   return pageId;
 }
 
 // Список комментариев (видно всем)
-app.get('/api/pages/:page/comments', (req, res) => {
-  const pageId = pageIdFromRequest(req.params.page);
+app.get('/api/pages/:page/comments', function (req, res) {
+  var pageId = pageIdFromRequest(req.params.page);
   if (!pageId) return res.status(400).json({ detail: 'Плохой идентификатор страницы' });
-  const rows = stmts.commentsList.all(pageId);
-  return res.json({ comments: rows });
+  var rows = stmts.commentsList.all(pageId);
+  var user = getSessionUser(req);
+  var comments = rows.map(function (r) {
+    return {
+      id: r.id,
+      display_name: r.display_name,
+      text: r.text,
+      created_at: r.created_at,
+      mine: Boolean(user && r.user_id === user.userId),
+    };
+  });
+  return res.json({ comments: comments });
 });
 
 // Отправить комментарий (только для вошедших)
-app.post('/api/pages/:page/comments', (req, res) => {
-  const user = getSessionUser(req);
+app.post('/api/pages/:page/comments', function (req, res) {
+  var user = getSessionUser(req);
   if (!user) return res.status(401).json({ detail: 'Требуется вход' });
 
-  const pageId = pageIdFromRequest(req.params.page);
+  var pageId = pageIdFromRequest(req.params.page);
   if (!pageId) return res.status(400).json({ detail: 'Плохой идентификатор страницы' });
 
-  const body = req.body || {};
-  const text = String(body.text || '').trim();
+  var body = req.body || {};
+  var text = String(body.text || '').trim();
   if (!text) return res.status(400).json({ detail: 'Комментарий пуст' });
   if (text.length > 1000) return res.status(400).json({ detail: 'Комментарий слишком длинный (макс. 1000 символов)' });
 
@@ -399,36 +431,65 @@ app.post('/api/pages/:page/comments', (req, res) => {
     return res.status(429).json({ detail: 'Не так часто — подожди немного' });
   }
 
-  // ЗАДЕЛ: анонимные комментарии — ник из nicks.csv (файл пока не существует)
-  if (body.anonymous) {
-    return res.status(400).json({ detail: 'Анонимные комментарии пока недоступны' });
+  var anonymous = Boolean(body.anonymous);
+  var displayName;
+  if (anonymous) {
+    // Если у пользователя ещё нет анонимного ника — выбрать и сохранить
+    if (!user.anonNick) {
+      var nick = pickAnonNick();
+      if (!nick) return res.status(400).json({ detail: 'Анонимные комментарии пока недоступны' });
+      stmts.userSetAnonNick.run(nick, user.userId);
+      displayName = nick;
+    } else {
+      displayName = user.anonNick;
+    }
+  } else {
+    displayName = user.username;
   }
 
-  const displayName = user.username;
-  const info = stmts.commentInsert.run(pageId, user.userId, displayName, text);
-  const created = stmts.commentGetById.get(info.lastInsertRowid);
+  var info = stmts.commentInsert.run(pageId, user.userId, displayName, text);
+  var created = stmts.commentGetById.get(info.lastInsertRowid);
+  created.mine = true;
   return res.status(201).json({ comment: created });
 });
 
-// Реакции: счетчики + голос текущего пользователя
-app.get('/api/pages/:page/reactions', (req, res) => {
-  const pageId = pageIdFromRequest(req.params.page);
+// Удалить комментарий (только автор)
+app.delete('/api/pages/:page/comments/:id', function (req, res) {
+  var user = getSessionUser(req);
+  if (!user) return res.status(401).json({ detail: 'Требуется вход' });
+
+  var pageId = pageIdFromRequest(req.params.page);
   if (!pageId) return res.status(400).json({ detail: 'Плохой идентификатор страницы' });
-  const counts = stmts.reactionCounts.get(pageId);
-  const user = getSessionUser(req);
-  const my = user ? (stmts.reactionGet.get(pageId, user.userId) || {}).value || 0 : 0;
-  return res.json({ likes: counts.likes, dislikes: counts.dislikes, my });
+
+  var id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ detail: 'Плохой id комментария' });
+
+  var info = stmts.commentDeleteByAuthor.run(id, user.userId);
+  if (info.changes === 0) {
+    return res.status(404).json({ detail: 'Комментарий не найден или вы не его автор' });
+  }
+  return res.json({ ok: true });
+});
+
+// Реакции: счетчики + голос текущего пользователя
+app.get('/api/pages/:page/reactions', function (req, res) {
+  var pageId = pageIdFromRequest(req.params.page);
+  if (!pageId) return res.status(400).json({ detail: 'Плохой идентификатор страницы' });
+  var counts = stmts.reactionCounts.get(pageId);
+  var user = getSessionUser(req);
+  var my = user ? (stmts.reactionGet.get(pageId, user.userId) || {}).value || 0 : 0;
+  return res.json({ likes: counts.likes, dislikes: counts.dislikes, my: my });
 });
 
 // Поставить/переключить/снять реакцию (только для вошедших)
-app.post('/api/pages/:page/reactions', (req, res) => {
-  const user = getSessionUser(req);
+app.post('/api/pages/:page/reactions', function (req, res) {
+  var user = getSessionUser(req);
   if (!user) return res.status(401).json({ detail: 'Требуется вход' });
 
-  const pageId = pageIdFromRequest(req.params.page);
+  var pageId = pageIdFromRequest(req.params.page);
   if (!pageId) return res.status(400).json({ detail: 'Плохой идентификатор страницы' });
 
-  const value = (req.body || {}).value;
+  var value = (req.body || {}).value;
   if (value === 0) {
     stmts.reactionDelete.run(pageId, user.userId);
   } else if (value === 1 || value === -1) {
@@ -437,21 +498,21 @@ app.post('/api/pages/:page/reactions', (req, res) => {
     return res.status(400).json({ detail: 'Значение реакции: 1, -1 или 0' });
   }
 
-  const counts = stmts.reactionCounts.get(pageId);
-  const my = (stmts.reactionGet.get(pageId, user.userId) || {}).value || 0;
-  return res.json({ likes: counts.likes, dislikes: counts.dislikes, my });
+  var counts = stmts.reactionCounts.get(pageId);
+  var my = (stmts.reactionGet.get(pageId, user.userId) || {}).value || 0;
+  return res.json({ likes: counts.likes, dislikes: counts.dislikes, my: my });
 });
 
 // ---------- Статика ----------
 
 // Сам сайт лежит на уровень выше (корень репозитория)
-const WEB_ROOT = path.join(__dirname, '..');
+var WEB_ROOT = path.join(__dirname, '..');
 app.use(express.static(WEB_ROOT, { extensions: ['html'] }));
 
 // ---------- Запуск ----------
 
-app.listen(PORT, () => {
-  console.log(`[cabanreports] сервер: http://localhost:${PORT}`);
-  console.log(`[cabanreports] верификация: ${REQUIRE_VERIFICATION}`);
+app.listen(PORT, function () {
+  console.log('[cabanreports] сервер: http://localhost:' + PORT);
+  console.log('[cabanreports] верификация: ' + REQUIRE_VERIFICATION);
   startBot();
 });

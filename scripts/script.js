@@ -18,7 +18,7 @@
   const anonymousCheckbox = document.getElementById('anonymous');
   const submitBtn = commentForm ? commentForm.querySelector('button[type="submit"]') : null;
 
-  let currentUser = null;
+  let currentUser = null; // { username, id } или null
   let myReaction = 0; // 0 | 1 | -1
 
   function escapeHtml(s) {
@@ -37,7 +37,7 @@
     try {
       const resp = await fetch('/api/auth/me');
       const data = await resp.json();
-      currentUser = data.username || null;
+      currentUser = data.username ? { username: data.username, id: data.id } : null;
     } catch (e) {
       currentUser = null;
     }
@@ -70,6 +70,13 @@
       for (const c of data.comments || []) {
         const li = document.createElement('li');
         li.innerHTML = '<strong>' + escapeHtml(c.display_name) + '</strong>: ' + escapeHtml(c.text);
+        if (c.mine) {
+          const del = document.createElement('span');
+          del.className = 'comment-delete';
+          del.textContent = 'удалить';
+          del.addEventListener('click', function () { deleteComment(c.id, li); });
+          li.appendChild(del);
+        }
         commentsList.appendChild(li);
       }
     } catch (e) {
@@ -77,11 +84,27 @@
     }
   }
 
-  async function submitComment(text) {
+  async function deleteComment(id, li) {
+    try {
+      const resp = await fetch('/api/pages/' + encodeURIComponent(pageId) + '/comments/' + id, {
+        method: 'DELETE',
+      });
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        alert(data.detail || 'Не удалось удалить комментарий');
+        return;
+      }
+      li.remove();
+    } catch (e) {
+      alert('Сервер недоступен');
+    }
+  }
+
+  async function submitComment(text, anonymous) {
     const resp = await fetch('/api/pages/' + encodeURIComponent(pageId) + '/comments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, anonymous: false }),
+      body: JSON.stringify({ text: text, anonymous: anonymous }),
     });
     if (!resp.ok) {
       const data = await resp.json().catch(() => ({}));
@@ -129,7 +152,7 @@
             if (!p) return;
             p.textContent = 'Лайки: ' + data.likes + ' | Дизлайки: ' + data.dislikes;
           })
-          .catch(() => { /* сервер недоступен — оставляем как есть */ })
+          .catch(function () { /* сервер недоступен — оставляем как есть */ })
       );
     }
     await Promise.all(jobs);
@@ -182,10 +205,18 @@
         alert('Напиши что‑нибудь в комментарий.');
         return;
       }
+      const anonymous = anonymousCheckbox ? anonymousCheckbox.checked : false;
       try {
-        const { comment } = await submitComment(text);
+        const { comment } = await submitComment(text, anonymous);
         const li = document.createElement('li');
         li.innerHTML = '<strong>' + escapeHtml(comment.display_name) + '</strong>: ' + escapeHtml(comment.text);
+        if (comment.mine) {
+          const del = document.createElement('span');
+          del.className = 'comment-delete';
+          del.textContent = 'удалить';
+          del.addEventListener('click', function () { deleteComment(comment.id, li); });
+          li.appendChild(del);
+        }
         commentsList.appendChild(li);
         commentInput.value = '';
       } catch (err) {

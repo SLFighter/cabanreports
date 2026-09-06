@@ -212,9 +212,13 @@
     cursor: default;
   }
 
-  /* Чекбокс «опубликовать анонимно» — в разработке */
-  .anon-label {
-    cursor: not-allowed;
+  /* Удалить комментарий */
+  .comment-delete {
+    font-size: 10px;
+    color: #0000cc;
+    text-decoration: underline;
+    cursor: pointer;
+    margin-left: 5px;
   }
 
   #comments-form {
