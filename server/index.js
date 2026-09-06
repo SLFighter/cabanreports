@@ -364,6 +364,84 @@ app.post('/api/auth/logout', (req, res) => {
   return res.json({ ok: true });
 });
 
+// ---------- Комментарии и реакции ----------
+
+// page_id из URL запроса: только безопасные символы
+function pageIdFromRequest(raw) {
+  const pageId = String(raw || '').replace(/^\/+|\/+$/g, '');
+  if (!pageId || pageId.length > 128 || !/^[A-Za-z0-9._-]+$/.test(pageId)) return null;
+  return pageId;
+}
+
+// Список комментариев (видно всем)
+app.get('/api/pages/:page/comments', (req, res) => {
+  const pageId = pageIdFromRequest(req.params.page);
+  if (!pageId) return res.status(400).json({ detail: 'Плохой идентификатор страницы' });
+  const rows = stmts.commentsList.all(pageId);
+  return res.json({ comments: rows });
+});
+
+// Отправить комментарий (только для вошедших)
+app.post('/api/pages/:page/comments', (req, res) => {
+  const user = getSessionUser(req);
+  if (!user) return res.status(401).json({ detail: 'Требуется вход' });
+
+  const pageId = pageIdFromRequest(req.params.page);
+  if (!pageId) return res.status(400).json({ detail: 'Плохой идентификатор страницы' });
+
+  const body = req.body || {};
+  const text = String(body.text || '').trim();
+  if (!text) return res.status(400).json({ detail: 'Комментарий пуст' });
+  if (text.length > 1000) return res.status(400).json({ detail: 'Комментарий слишком длинный (макс. 1000 символов)' });
+
+  // Антиспам: не чаще одного комментария в 10 секунд
+  if (stmts.commentCountRecent.get(user.userId).n > 0) {
+    return res.status(429).json({ detail: 'Не так часто — подожди немного' });
+  }
+
+  // ЗАДЕЛ: анонимные комментарии — ник из nicks.csv (файл пока не существует)
+  if (body.anonymous) {
+    return res.status(400).json({ detail: 'Анонимные комментарии пока недоступны' });
+  }
+
+  const displayName = user.username;
+  const info = stmts.commentInsert.run(pageId, user.userId, displayName, text);
+  const created = stmts.commentGetById.get(info.lastInsertRowid);
+  return res.status(201).json({ comment: created });
+});
+
+// Реакции: счетчики + голос текущего пользователя
+app.get('/api/pages/:page/reactions', (req, res) => {
+  const pageId = pageIdFromRequest(req.params.page);
+  if (!pageId) return res.status(400).json({ detail: 'Плохой идентификатор страницы' });
+  const counts = stmts.reactionCounts.get(pageId);
+  const user = getSessionUser(req);
+  const my = user ? (stmts.reactionGet.get(pageId, user.userId) || {}).value || 0 : 0;
+  return res.json({ likes: counts.likes, dislikes: counts.dislikes, my });
+});
+
+// Поставить/переключить/снять реакцию (только для вошедших)
+app.post('/api/pages/:page/reactions', (req, res) => {
+  const user = getSessionUser(req);
+  if (!user) return res.status(401).json({ detail: 'Требуется вход' });
+
+  const pageId = pageIdFromRequest(req.params.page);
+  if (!pageId) return res.status(400).json({ detail: 'Плохой идентификатор страницы' });
+
+  const value = (req.body || {}).value;
+  if (value === 0) {
+    stmts.reactionDelete.run(pageId, user.userId);
+  } else if (value === 1 || value === -1) {
+    stmts.reactionUpsert.run(pageId, user.userId, value);
+  } else {
+    return res.status(400).json({ detail: 'Значение реакции: 1, -1 или 0' });
+  }
+
+  const counts = stmts.reactionCounts.get(pageId);
+  const my = (stmts.reactionGet.get(pageId, user.userId) || {}).value || 0;
+  return res.json({ likes: counts.likes, dislikes: counts.dislikes, my });
+});
+
 // ---------- Статика ----------
 
 // Сам сайт лежит на уровень выше (корень репозитория)

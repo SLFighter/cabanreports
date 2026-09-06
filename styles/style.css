@@ -199,6 +199,24 @@
     border-color: #000000;
   }
 
+  /* Заглушка вместо textarea для неавторизованных */
+  .comment-login-prompt {
+    width: 100%;
+    min-height: 100px;
+    border: 1px solid #999999;
+    padding: 3px;
+    background-color: #f0f0f0;
+    color: #555555;
+    font-family: inherit;
+    font-size: 13px;
+    cursor: default;
+  }
+
+  /* Чекбокс «опубликовать анонимно» — в разработке */
+  .anon-label {
+    cursor: not-allowed;
+  }
+
   #comments-form {
     margin-left: 20px;
   }

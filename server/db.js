@@ -70,6 +70,24 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions (user_id);
   CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions (expires_at);
 
+  CREATE TABLE IF NOT EXISTS comments (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    page_id      TEXT    NOT NULL,
+    user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    display_name TEXT    NOT NULL,
+    text         TEXT    NOT NULL,
+    created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_comments_page ON comments (page_id, id);
+
+  CREATE TABLE IF NOT EXISTS reactions (
+    page_id TEXT NOT NULL,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    value   INTEGER NOT NULL CHECK (value IN (-1, 1)),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (page_id, user_id)
+  );
+
   CREATE INDEX IF NOT EXISTS idx_pending_expires ON pending_registrations (expires_at);
 `);
 
@@ -152,6 +170,33 @@ const stmts = {
      ON CONFLICT(ip_hash, window_at) DO UPDATE SET count = count + 1`
   ),
   laCleanup: db.prepare(`DELETE FROM login_attempts_ip WHERE window_at < datetime('now', '-1 hour')`),
+
+  // комментарии
+  commentsList: db.prepare(
+    `SELECT id, display_name, text, created_at FROM comments
+     WHERE page_id = ? ORDER BY id ASC LIMIT 500`
+  ),
+  commentInsert: db.prepare(
+    `INSERT INTO comments (page_id, user_id, display_name, text) VALUES (?, ?, ?, ?)`
+  ),
+  commentCountRecent: db.prepare(
+    `SELECT count(*) AS n FROM comments
+     WHERE user_id = ? AND created_at > datetime('now', '-10 seconds')`
+  ),
+
+  // реакции: агрегаты + голос пользователя
+  reactionCounts: db.prepare(
+    `SELECT
+       COALESCE(SUM(CASE WHEN value = 1 THEN 1 ELSE 0 END), 0)  AS likes,
+       COALESCE(SUM(CASE WHEN value = -1 THEN 1 ELSE 0 END), 0) AS dislikes
+     FROM reactions WHERE page_id = ?`
+  ),
+  reactionGet: db.prepare('SELECT value FROM reactions WHERE page_id = ? AND user_id = ?'),
+  reactionUpsert: db.prepare(
+    `INSERT INTO reactions (page_id, user_id, value, updated_at) VALUES (?, ?, ?, datetime('now'))
+     ON CONFLICT(page_id, user_id) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`
+  ),
+  reactionDelete: db.prepare('DELETE FROM reactions WHERE page_id = ? AND user_id = ?'),
 };
 
 // Периодическая чистка протухших сессий и счетчиков попыток

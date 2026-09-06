@@ -87,17 +87,18 @@
           
             <form action="#" method="post" id="comment-form">
               <p>
-                <label for="nickname">Ник:</label><br>
-                <input type="text" id="nickname" name="nickname">
+                <div id="comment-login-prompt" class="comment-login-prompt">
+                  Сначала <a href="../pages/login.html">деанонимизируйтесь</a>
+                </div>
+                <textarea id="comment" name="comment" rows="6" cols="40" style="display:none;"></textarea>
               </p>
           
               <p>
-                <label for="comment">Комментарий:</label><br>
-                <textarea id="comment" name="comment" rows="6" cols="40"></textarea>
+                <label class="anon-label" title="В разработке"><input type="checkbox" id="anonymous" name="anonymous" disabled style="display:none;"> опубликовать анонимно</label>
               </p>
           
               <p>
-                <button type="submit">Отправить</button>
+                <button type="submit" disabled>Отправить</button>
               </p>
             </form>
             <h3>Комментарии</h3>
