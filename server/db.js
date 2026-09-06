@@ -1,106 +1,249 @@
-/**
- * База данных «Кабаньих сводок».
- * SQLite, один файл — data.sqlite рядом со скриптом.
- *
- * users                 — подтвержденные учетки.
- * pending_registrations — заявки, ждущие подтверждения (telegram/email в будущем).
- */
-
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
-const Database = require('better-sqlite3');
+const { Pool } = require('pg');
 const crypto = require('crypto');
 
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data.sqlite');
-fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-
-const db = new Database(DB_PATH);
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
-
-// ---------- Схема ----------
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    username      TEXT    NOT NULL UNIQUE COLLATE NOCASE,
-    password_hash TEXT    NOT NULL,
-    password_salt TEXT    NOT NULL,
-    telegram_id   INTEGER UNIQUE,
-    email         TEXT UNIQUE,
-    status        TEXT    NOT NULL DEFAULT 'active',
-    created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS pending_registrations (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    code          TEXT    NOT NULL UNIQUE,
-    username      TEXT    NOT NULL COLLATE NOCASE,
-    password_hash TEXT    NOT NULL,
-    password_salt TEXT    NOT NULL,
-    telegram_id   INTEGER,
-    email         TEXT,
-    created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
-    expires_at    TEXT    NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS rate_limit_ip (
-    ip_hash TEXT NOT NULL,
-    day     TEXT NOT NULL,
-    count   INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (ip_hash, day)
-  );
-
-  CREATE TABLE IF NOT EXISTS login_attempts_ip (
-    ip_hash   TEXT NOT NULL,
-    window_at TEXT NOT NULL,
-    count     INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (ip_hash, window_at)
-  );
-
-  CREATE TABLE IF NOT EXISTS sessions (
-    token_hash TEXT PRIMARY KEY,
-    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    expires_at TEXT NOT NULL
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions (user_id);
-  CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions (expires_at);
-
-  CREATE TABLE IF NOT EXISTS comments (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    page_id      TEXT    NOT NULL,
-    user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    display_name TEXT    NOT NULL,
-    text         TEXT    NOT NULL,
-    created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
-  );
-  CREATE INDEX IF NOT EXISTS idx_comments_page ON comments (page_id, id);
-
-  CREATE TABLE IF NOT EXISTS reactions (
-    page_id TEXT NOT NULL,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    value   INTEGER NOT NULL CHECK (value IN (-1, 1)),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-    PRIMARY KEY (page_id, user_id)
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_pending_expires ON pending_registrations (expires_at);
-`);
-
-// ---------- Миграции ----------
-// Добавляем anon_nick в users, если колонки нет (для существующих БД)
-{
-  const cols = db.pragma('table_info(users)');
-  if (!cols.some((c) => c.name === 'anon_nick')) {
-    db.exec('ALTER TABLE users ADD COLUMN anon_nick TEXT');
-  }
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  console.error('[db] DATABASE_URL не задан — серверу нужна база Postgres.');
+  process.exit(1);
 }
 
-// ---------- Пароли (scrypt, встроенный crypto) ----------
+const pool = new Pool({ connectionString });
+
+async function migrate() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id            BIGSERIAL PRIMARY KEY,
+      username      TEXT    NOT NULL UNIQUE,
+      username_lc   TEXT    NOT NULL UNIQUE,
+      password_hash TEXT    NOT NULL,
+      password_salt TEXT    NOT NULL,
+      anon_nick     TEXT,
+      telegram_id   BIGINT UNIQUE,
+      email         TEXT,
+      status        TEXT    NOT NULL DEFAULT 'active',
+      created_at    TEXT    NOT NULL DEFAULT to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')
+    );
+
+    CREATE TABLE IF NOT EXISTS pending_registrations (
+      id            BIGSERIAL PRIMARY KEY,
+      code          TEXT    NOT NULL UNIQUE,
+      username      TEXT    NOT NULL,
+      password_hash TEXT    NOT NULL,
+      password_salt TEXT    NOT NULL,
+      telegram_id   BIGINT,
+      email         TEXT,
+      created_at    TEXT    NOT NULL DEFAULT to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS'),
+      expires_at    TEXT    NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_pending_expires ON pending_registrations (expires_at);
+
+    CREATE TABLE IF NOT EXISTS rate_limit_ip (
+      ip_hash TEXT NOT NULL,
+      day     TEXT NOT NULL,
+      count   INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (ip_hash, day)
+    );
+
+    CREATE TABLE IF NOT EXISTS login_attempts_ip (
+      ip_hash   TEXT NOT NULL,
+      window_at TEXT NOT NULL,
+      count     INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (ip_hash, window_at)
+    );
+
+    CREATE TABLE IF NOT EXISTS sessions (
+      token_hash TEXT PRIMARY KEY,
+      user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TEXT NOT NULL DEFAULT to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS'),
+      expires_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions (user_id);
+    CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions (expires_at);
+
+    CREATE TABLE IF NOT EXISTS comments (
+      id           BIGSERIAL PRIMARY KEY,
+      page_id      TEXT    NOT NULL,
+      user_id      BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      display_name TEXT    NOT NULL,
+      text         TEXT    NOT NULL,
+      created_at   TEXT    NOT NULL DEFAULT to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')
+    );
+    CREATE INDEX IF NOT EXISTS idx_comments_page ON comments (page_id, id);
+
+    CREATE TABLE IF NOT EXISTS reactions (
+      page_id    TEXT NOT NULL,
+      user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      value      INTEGER NOT NULL CHECK (value IN (-1, 1)),
+      updated_at TEXT NOT NULL DEFAULT to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS'),
+      PRIMARY KEY (page_id, user_id)
+    );
+  `);
+}
+
+function mkHelpers() {
+  const q = (text, params) => pool.query(text, params);
+
+  async function one(text, params) {
+    const r = await q(text, params);
+    return r.rows[0] || null;
+  }
+
+  async function val(text, params) {
+    const r = await q(text, params);
+    return r.rows[0] ? Object.values(r.rows[0])[0] : null;
+  }
+
+  async function run(text, params) {
+    const r = await q(text, params);
+    return { changes: r.rowCount, lastInsertRowid: r.rows[0] ? r.rows[0].id : null };
+  }
+
+  return { q, one, val, run };
+}
+
+const h = mkHelpers();
+
+const stmts = {
+  getUserByName: (username) =>
+    h.one('SELECT * FROM users WHERE lower(username) = lower($1)', [username]),
+  getUserByTelegram: (telegramId) =>
+    h.one('SELECT * FROM users WHERE telegram_id = $1', [telegramId]),
+  getUserByEmail: (email) =>
+    h.one('SELECT * FROM users WHERE lower(email) = lower($1)', [email]),
+
+  insertUser: (username, password_hash, password_salt, telegramId, email) =>
+    h.one(
+      `INSERT INTO users (username, username_lc, password_hash, password_salt, telegram_id, email, status)
+       VALUES ($1, lower($1), $2, $3, $4, $5, 'active')
+       RETURNING *`,
+      [username, password_hash, password_salt, telegramId, email]
+    ),
+
+  insertPending: (code, username, password_hash, password_salt, telegramId, email) =>
+    h.one(
+      `INSERT INTO pending_registrations
+         (code, username, password_hash, password_salt, telegram_id, email, expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6, to_char(now() AT TIME ZONE 'utc' + interval '20 minutes', 'YYYY-MM-DD HH24:MI:SS'))
+       RETURNING *`,
+      [code, username, password_hash, password_salt, telegramId, email]
+    ),
+
+  getPendingByCode: (code) =>
+    h.one('SELECT * FROM pending_registrations WHERE code = $1', [code]),
+
+  confirmTelegram: (telegramId, code) =>
+    h.run(
+      'UPDATE pending_registrations SET telegram_id = $1 WHERE code = $2 AND telegram_id IS NULL',
+      [telegramId, code]
+    ),
+
+  deletePending: (id) => h.run('DELETE FROM pending_registrations WHERE id = $1', [id]),
+
+  cleanupExpired: () =>
+    h.run("DELETE FROM pending_registrations WHERE expires_at < to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')"),
+
+  rlGet: (ipHash, day) => h.one('SELECT count FROM rate_limit_ip WHERE ip_hash = $1 AND day = $2', [ipHash, day]),
+  rlUpsert: (ipHash, day) =>
+    h.run(
+      `INSERT INTO rate_limit_ip (ip_hash, day, count) VALUES ($1, $2, 1)
+       ON CONFLICT (ip_hash, day) DO UPDATE SET count = rate_limit_ip.count + 1`,
+      [ipHash, day]
+    ),
+  rlCleanup: () => h.run("DELETE FROM rate_limit_ip WHERE day < to_char(now() AT TIME ZONE 'utc' - interval '2 days', 'YYYY-MM-DD')"),
+
+  sessionInsert: (tokenHash, userId, ttlDays) =>
+    h.run(
+      `INSERT INTO sessions (token_hash, user_id, expires_at)
+       VALUES ($1, $2, to_char(now() AT TIME ZONE 'utc' + make_interval(days => $3), 'YYYY-MM-DD HH24:MI:SS'))`,
+      [tokenHash, userId, ttlDays]
+    ),
+
+  sessionGet: (tokenHash) =>
+    h.one(
+      `SELECT s.token_hash, s.expires_at, u.id AS user_id, u.username, u.anon_nick
+       FROM sessions s JOIN users u ON u.id = s.user_id
+       WHERE s.token_hash = $1 AND s.expires_at > to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')`,
+      [tokenHash]
+    ),
+
+  sessionExtend: (ttlDays, tokenHash) =>
+    h.run(
+      `UPDATE sessions SET expires_at = to_char(now() AT TIME ZONE 'utc' + make_interval(days => $1), 'YYYY-MM-DD HH24:MI:SS')
+       WHERE token_hash = $2`,
+      [ttlDays, tokenHash]
+    ),
+
+  sessionDelete: (tokenHash) => h.run('DELETE FROM sessions WHERE token_hash = $1', [tokenHash]),
+
+  sessionCleanup: () =>
+    h.run("DELETE FROM sessions WHERE expires_at < to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')"),
+
+  laGet: (ipHash, windowAt) => h.one('SELECT count FROM login_attempts_ip WHERE ip_hash = $1 AND window_at = $2', [ipHash, windowAt]),
+  laUpsert: (ipHash, windowAt) =>
+    h.run(
+      `INSERT INTO login_attempts_ip (ip_hash, window_at, count) VALUES ($1, $2, 1)
+       ON CONFLICT (ip_hash, window_at) DO UPDATE SET count = login_attempts_ip.count + 1`,
+      [ipHash, windowAt]
+    ),
+  laCleanup: () =>
+    h.run("DELETE FROM login_attempts_ip WHERE window_at < to_char(now() AT TIME ZONE 'utc' - interval '1 hour', 'YYYY-MM-DD HH24:MI:SS')"),
+
+  commentsList: (pageId) =>
+    h.q(
+      'SELECT id, user_id, display_name, text, created_at FROM comments WHERE page_id = $1 ORDER BY id ASC LIMIT 500',
+      [pageId]
+    ).then((r) => r.rows),
+
+  commentInsert: (pageId, userId, displayName, text) =>
+    h.one(
+      `INSERT INTO comments (page_id, user_id, display_name, text)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, display_name, text, created_at`,
+      [pageId, userId, displayName, text]
+    ),
+
+  commentCountRecent: (userId) =>
+    h.val(
+      `SELECT count(*)::int FROM comments
+       WHERE user_id = $1 AND created_at > to_char(now() AT TIME ZONE 'utc' - interval '10 seconds', 'YYYY-MM-DD HH24:MI:SS')`,
+      [userId]
+    ),
+
+  commentGetById: (id) =>
+    h.one('SELECT id, display_name, text, created_at FROM comments WHERE id = $1', [id]),
+
+  commentDeleteByAuthor: (id, userId) =>
+    h.run('DELETE FROM comments WHERE id = $1 AND user_id = $2', [id, userId]),
+
+  userSetAnonNick: (nick, userId) =>
+    h.run('UPDATE users SET anon_nick = $1 WHERE id = $2', [nick, userId]),
+
+  reactionCounts: (pageId) =>
+    h.one(
+      `SELECT
+         COALESCE(SUM(CASE WHEN value = 1 THEN 1 ELSE 0 END), 0)::int  AS likes,
+         COALESCE(SUM(CASE WHEN value = -1 THEN 1 ELSE 0 END), 0)::int AS dislikes
+       FROM reactions WHERE page_id = $1`,
+      [pageId]
+    ),
+
+  reactionGet: (pageId, userId) =>
+    h.one('SELECT value FROM reactions WHERE page_id = $1 AND user_id = $2', [pageId, userId]),
+
+  reactionUpsert: (pageId, userId, value) =>
+    h.run(
+      `INSERT INTO reactions (page_id, user_id, value, updated_at)
+       VALUES ($1, $2, $3, to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS'))
+       ON CONFLICT (page_id, user_id)
+       DO UPDATE SET value = excluded.value, updated_at = to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')`,
+      [pageId, userId, value]
+    ),
+
+  reactionDelete: (pageId, userId) =>
+    h.run('DELETE FROM reactions WHERE page_id = $1 AND user_id = $2', [pageId, userId]),
+};
 
 function hashPassword(password, salt) {
   salt = salt || crypto.randomBytes(16).toString('hex');
@@ -117,117 +260,9 @@ function verifyPassword(password, salt, expectedHash) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-// ---------- Запросы ----------
-
-const stmts = {
-  getUserByName:     db.prepare('SELECT * FROM users WHERE username = ? COLLATE NOCASE'),
-  getUserByTelegram: db.prepare('SELECT * FROM users WHERE telegram_id = ?'),
-  getUserByEmail:    db.prepare('SELECT * FROM users WHERE email = ? COLLATE NOCASE'),
-
-  insertUser: db.prepare(
-    `INSERT INTO users (username, password_hash, password_salt, telegram_id, email, status)
-     VALUES (?, ?, ?, ?, ?, 'active')`
-  ),
-
-  insertPending: db.prepare(
-    `INSERT INTO pending_registrations
-       (code, username, password_hash, password_salt, telegram_id, email, expires_at)
-     VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+20 minutes'))`
-  ),
-
-  getPendingByCode: db.prepare('SELECT * FROM pending_registrations WHERE code = ?'),
-  confirmTelegram: db.prepare(
-    'UPDATE pending_registrations SET telegram_id = ? WHERE code = ? AND telegram_id IS NULL'
-  ),
-
-  confirmPending: db.prepare(
-    `INSERT INTO users (username, password_hash, password_salt, telegram_id, email, status)
-     VALUES (@username, @password_hash, @password_salt, @telegram_id, @email, 'active')`
-  ),
-
-  deletePending:  db.prepare('DELETE FROM pending_registrations WHERE id = ?'),
-  cleanupExpired: db.prepare(`DELETE FROM pending_registrations WHERE expires_at < datetime('now')`),
-
-  // rate limit: вместо IP храним только его хеш с серверной солью
-  rlGet:     db.prepare('SELECT count FROM rate_limit_ip WHERE ip_hash = ? AND day = ?'),
-  rlUpsert:  db.prepare(
-    `INSERT INTO rate_limit_ip (ip_hash, day, count) VALUES (?, ?, 1)
-     ON CONFLICT(ip_hash, day) DO UPDATE SET count = count + 1`
-  ),
-  rlCleanup: db.prepare(`DELETE FROM rate_limit_ip WHERE day < date('now', '-2 days')`),
-
-  // сессии: в БД только sha256-хеш токена, сам токен живет в cookie пользователя
-  sessionInsert: db.prepare(
-    `INSERT INTO sessions (token_hash, user_id, expires_at)
-     VALUES (?, ?, datetime('now', ?))`
-  ),
-  sessionGet: db.prepare(
-    `SELECT s.token_hash, s.expires_at, u.id AS user_id, u.username, u.anon_nick
-     FROM sessions s JOIN users u ON u.id = s.user_id
-     WHERE s.token_hash = ? AND s.expires_at > datetime('now')`
-  ),
-  sessionExtend: db.prepare(
-    `UPDATE sessions SET expires_at = datetime('now', ?) WHERE token_hash = ?`
-  ),
-  sessionDelete: db.prepare('DELETE FROM sessions WHERE token_hash = ?'),
-  sessionCleanup: db.prepare(`DELETE FROM sessions WHERE expires_at < datetime('now')`),
-
-  // брутфорс-лимит: счетчик неудачных попыток входа за окно времени
-  laGet: db.prepare('SELECT count FROM login_attempts_ip WHERE ip_hash = ? AND window_at = ?'),
-  laUpsert: db.prepare(
-    `INSERT INTO login_attempts_ip (ip_hash, window_at, count) VALUES (?, ?, 1)
-     ON CONFLICT(ip_hash, window_at) DO UPDATE SET count = count + 1`
-  ),
-  laCleanup: db.prepare(`DELETE FROM login_attempts_ip WHERE window_at < datetime('now', '-1 hour')`),
-
-  // комментарии
-  commentsList: db.prepare(
-    `SELECT id, user_id, display_name, text, created_at FROM comments
-     WHERE page_id = ? ORDER BY id ASC LIMIT 500`
-  ),
-  commentInsert: db.prepare(
-    `INSERT INTO comments (page_id, user_id, display_name, text) VALUES (?, ?, ?, ?)`
-  ),
-  commentCountRecent: db.prepare(
-    `SELECT count(*) AS n FROM comments
-     WHERE user_id = ? AND created_at > datetime('now', '-10 seconds')`
-  ),
-  commentGetById: db.prepare(
-    `SELECT id, display_name, text, created_at FROM comments WHERE id = ?`
-  ),
-  commentDeleteByAuthor: db.prepare(
-    'DELETE FROM comments WHERE id = ? AND user_id = ?'
-  ),
-
-  // пользователь
-  userSetAnonNick: db.prepare('UPDATE users SET anon_nick = ? WHERE id = ?'),
-
-  // реакции: агрегаты + голос пользователя
-  reactionCounts: db.prepare(
-    `SELECT
-       COALESCE(SUM(CASE WHEN value = 1 THEN 1 ELSE 0 END), 0)  AS likes,
-       COALESCE(SUM(CASE WHEN value = -1 THEN 1 ELSE 0 END), 0) AS dislikes
-     FROM reactions WHERE page_id = ?`
-  ),
-  reactionGet: db.prepare('SELECT value FROM reactions WHERE page_id = ? AND user_id = ?'),
-  reactionUpsert: db.prepare(
-    `INSERT INTO reactions (page_id, user_id, value, updated_at) VALUES (?, ?, ?, datetime('now'))
-     ON CONFLICT(page_id, user_id) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`
-  ),
-  reactionDelete: db.prepare('DELETE FROM reactions WHERE page_id = ? AND user_id = ?'),
-};
-
-// Периодическая чистка протухших сессий и счетчиков попыток
-function maintenance() {
-  stmts.sessionCleanup.run();
-  stmts.laCleanup.run();
-}
-setInterval(maintenance, 10 * 60 * 1000).unref();
-
-function createUser(username, password, telegramId = null, email = null) {
+async function createUser(username, password, telegramId = null, email = null) {
   const { salt, hash } = hashPassword(password);
-  stmts.insertUser.run(username, hash, salt, telegramId, email);
-  return stmts.getUserByName.get(username);
+  return stmts.insertUser(username, hash, salt, telegramId, email);
 }
 
-module.exports = { db, stmts, hashPassword, verifyPassword, createUser };
+module.exports = { pool, stmts, hashPassword, verifyPassword, createUser, migrate };

@@ -1,17 +1,3 @@
-/**
- * Telegram-бот — ЗАДЕЛ НА БУДУЩЕЕ.
- *
- * Сейчас (REQUIRE_VERIFICATION=none) бот не нужен и спит.
- * Когда появится токен в .env (TELEGRAM_BOT_TOKEN=...), бот проснется,
- * начнет long polling и будет подтверждать заявки командой: /start <КОД>
- *
- * Флоу подтверждения (будущее):
- *   1. Пользователь регистрируется -> сервер создает pending_registrations с кодом.
- *   2. Пользователь жмет ссылку t.me/<бот>?start=<КОД>.
- *   3. Бот получает /start КОД -> пишет telegram_id в заявку.
- *   4. Фронт (polling register/status) видит confirmed -> финализирует регистрацию.
- */
-
 'use strict';
 
 const { stmts } = require('./db');
@@ -19,19 +5,16 @@ const { stmts } = require('./db');
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
 const API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
-/** Подтвердить заявку кодом: привязать telegram_id. Возвращает true/false. */
-function confirmPendingByCode(code, telegramId) {
-  const row = stmts.getPendingByCode.get(code);
+async function confirmPendingByCode(code, telegramId) {
+  const row = await stmts.getPendingByCode(code);
   if (!row) return { ok: false, error: 'Код не найден или истек' };
   if (row.telegram_id) {
-    // Уже подтверждено — идемпотентно ок
-    return { ok: row.telegram_id === telegramId, error: row.telegram_id === telegramId ? null : 'Код подтвержден другим аккаунтом' };
+    return { ok: row.telegram_id === String(telegramId), error: row.telegram_id === String(telegramId) ? null : 'Код подтвержден другим аккаунтом' };
   }
-  stmts.confirmTelegram.run(telegramId, code);
+  await stmts.confirmTelegram(String(telegramId), code);
   return { ok: true };
 }
 
-/** Обработка апдейта Telegram */
 async function handleUpdate(update, send) {
   const msg = update.message;
   if (!msg || !msg.text) return;
@@ -39,11 +22,10 @@ async function handleUpdate(update, send) {
   const chatId = msg.chat.id;
   const text = msg.text.trim();
 
-  // /start <КОД> — подтверждение регистрации
   const m = text.match(/^\/start\s+([A-Za-z0-9-]{6,64})$/);
   if (m) {
     const code = m[1].toUpperCase();
-    const result = confirmPendingByCode(code, chatId);
+    const result = await confirmPendingByCode(code, chatId);
     if (result.ok) {
       await send(chatId, '✓ Принято! Возвращайся на сайт — регистрация сейчас завершится.\nПосле этого бота можно заблокировать, он больше не понадобится.');
     } else {
@@ -60,7 +42,6 @@ async function handleUpdate(update, send) {
   await send(chatId, 'Не понял. Код подтверждения выглядит так: /start XXXXXX-XXXXXX-XXXXXX');
 }
 
-/** Отправка сообщения */
 async function sendMessage(chatId, text) {
   const resp = await fetch(`${API}/sendMessage`, {
     method: 'POST',
@@ -70,12 +51,9 @@ async function sendMessage(chatId, text) {
   if (!resp.ok) console.error('[tgbot] sendMessage failed:', resp.status);
 }
 
-/** Long polling цикл */
 async function pollLoop(offset = 0) {
   try {
-    const resp = await fetch(`${API}/getUpdates?timeout=30&offset=${offset}`, {
-      agent: undefined,
-    });
+    const resp = await fetch(`${API}/getUpdates?timeout=30&offset=${offset}`);
     if (resp.ok) {
       const data = await resp.json();
       if (data.ok && Array.isArray(data.result)) {
@@ -99,10 +77,9 @@ async function pollLoop(offset = 0) {
   return pollLoop(offset);
 }
 
-/** Запуск бота. Без токена тихо спит. */
 function startBot() {
   if (!BOT_TOKEN) {
-    console.log('[tgbot] TELEGRAM_BOT_TOKEN не задан — бот спит (это нормально для REQUIRE_VERIFICATION=none)');
+    console.log('[tgbot] TELEGRAM_BOT_TOKEN не задан — бот спит');
     return;
   }
   console.log('[tgbot] запускаюсь (long polling)...');
