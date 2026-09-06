@@ -183,6 +183,9 @@ const stmts = {
     `SELECT count(*) AS n FROM comments
      WHERE user_id = ? AND created_at > datetime('now', '-10 seconds')`
   ),
+  commentGetById: db.prepare(
+    `SELECT id, display_name, text, created_at FROM comments WHERE id = ?`
+  ),
 
   // реакции: агрегаты + голос пользователя
   reactionCounts: db.prepare(
