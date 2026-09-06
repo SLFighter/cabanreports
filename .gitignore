@@ -1,1 +1,8 @@
 account
+
+# --- Сервер ---
+server/node_modules/
+server/data.sqlite
+server/data.sqlite-shm
+server/data.sqlite-wal
+server/.env

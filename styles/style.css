@@ -238,3 +238,103 @@
     border-color: #3333aa;
     color: #111166;
   }
+
+  /* ---------- Регистрация ---------- */
+
+  /* Пароли: стилизуем как текстовые поля */
+  input[type="text"],
+  input[type="password"],
+  textarea {
+    width: 100%;
+    border: 1px solid #999999;
+    padding: 3px;
+    font-family: inherit;
+    font-size: 13px;
+  }
+
+  .nick-status {
+    font-size: 11px;
+    margin-left: 5px;
+  }
+
+  .nick-status.ok {
+    color: #229922;
+  }
+
+  .nick-status.bad {
+    color: #cc2222;
+  }
+
+  /* Honeypot: поле для ботов, людям не показываем */
+  .honeypot {
+    position: absolute !important;
+    left: -9999px !important;
+    height: 1px;
+    width: 1px;
+    overflow: hidden;
+  }
+
+  /* Одноразовый код подтверждения (задел на будущее) */
+  .reg-code {
+    font-family: "Courier New", Courier, monospace;
+    font-size: 16px;
+    letter-spacing: 2px;
+    background: #f4f4f4;
+    border: 1px dashed #999999;
+    padding: 4px 8px;
+  }
+
+  /* ---------- Вход / Регистрация (плашка в шапке) ---------- */
+
+  body > header {
+    position: relative;
+  }
+
+  .top-auth {
+    position: absolute;
+    top: 4px;
+    right: 10px;
+    font-size: 11px;
+    color: #555555;
+  }
+
+  .top-auth a {
+    color: #0000cc;
+    text-decoration: underline;
+  }
+
+  .top-auth a:hover {
+    color: #ff0000;
+  }
+
+  .top-auth-name {
+    font-weight: bold;
+    color: #333333;
+  }
+
+  /* Сообщения формы входа (аналог reg_message) */
+  #login_message {
+    margin-top: 12px;
+    padding: 6px 10px;
+    font-size: 13px;
+    display: none;
+    border: 1px solid;
+  }
+
+  #login_message.success {
+    background: #ddffdd;
+    border-color: #229922;
+    color: #115511;
+  }
+
+  #login_message.error {
+    background: #ffdddd;
+    border-color: #cc2222;
+    color: #880000;
+  }
+
+  #login_message.loading {
+    background: #eeeeff;
+    border-color: #3333aa;
+    color: #111166;
+  }

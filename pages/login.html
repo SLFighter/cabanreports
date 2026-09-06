@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <link rel="stylesheet" href="../styles/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Вход - Кабаньи сводки</title>
+</head>
+<body>
+  <header>
+    <div class="top-auth"><a href="../pages/register.html">Регистрация</a></div>
+    <pre style="font-family: monospace; line-height: 1.2;">
+  ░█▀▀░█▀█░█▀▄░█▀█░█▀█░░░█▀▄░█▀▀░█▀█░█▀█░█▀▄░▀█▀░█▀▀
+  ░█░░░█▀█░█▀▄░█▀█░█░█░░░█▀▄░█▀▀░█▀▀░█░█░█▀▄░░█░░▀▀█
+  ░▀▀▀░▀░▀░▀▀░░▀░▀░▀░▀░░░▀░▀░▀▀▀░▀░░░▀▀▀░▀░▀░░▀░░▀▀▀
+    </pre>
+    <p>личный блог | МАХимально уютно | Telegramмам - нет | HTML - будет жить</p>
+    <nav>
+      <a href="../index.html">На главную</a>
+      <a href="../pages/aboutAuthor.html">Пара слов об авторе</a>
+      <a href="../pages/underConstruction.html">Under construction...</a>
+    </nav>
+  </header>
+  <main>
+    <section>
+      <h2>Вход</h2>
+      <p>С возвращением! Ник да пароль - как обычно.</p>
+      <form id="login-form" autocomplete="off">
+        <p>
+          <label for="username">Ник:</label><br>
+          <input type="text" id="username" name="username" maxlength="20" required>
+        </p>
+        <p>
+          <label for="password">Пароль:</label><br>
+          <input type="password" id="password" name="password" required>
+        </p>
+        <p>
+          <label><input type="checkbox" id="remember" name="remember" checked> Запомнить меня</label>
+        </p>
+        <p>
+          <button type="submit" id="btn-login">Войти</button>
+        </p>
+        <div id="login_message"></div>
+      </form>
+      <p id="date">Еще нет учетки? <a href="../pages/register.html">Зарегистрируйся</a></p>
+    </section>
+    <aside>
+      <h2>Безопасность</h2>
+      <p>После входа сайт запомнит тебя: с галочкой «Запомнить меня» - на месяц, без нее - до закрытия браузера.</p>
+      <p>Десять неверных попыток подряд - и вход с твоего адреса отдохнет четверть часа (защита от перебора).</p>
+    </aside>
+  </main>
+  <footer>
+    <p>© 2026 Caban Reports</p>
+  </footer>
+  <script src="../scripts/login.js"></script>
+  <script src="../scripts/auth.js"></script>
+</body>
+</html>

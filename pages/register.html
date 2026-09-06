@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <link rel="stylesheet" href="../styles/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Регистрация — Кабаньи сводки</title>
+</head>
+<body>
+  <header>
+  <div class="top-auth"><a href="../pages/login.html">Вход</a></div>
+    <pre style="font-family: monospace; line-height: 1.2;">
+  ░█▀▀░█▀█░█▀▄░█▀█░█▀█░░░█▀▄░█▀▀░█▀█░█▀█░█▀▄░▀█▀░█▀▀
+  ░█░░░█▀█░█▀▄░█▀█░█░█░░░█▀▄░█▀▀░█▀▀░█░█░█▀▄░░█░░▀▀█
+  ░▀▀▀░▀░▀░▀▀░░▀░▀░▀░▀░░░▀░▀░▀▀▀░▀░░░▀▀▀░▀░▀░░▀░░▀▀▀
+    </pre>
+    <p>личный блог | МАХимально уютно | Telegramмам - нет | HTML - будет жить</p>
+    <nav>
+      <a href="../index.html">На главную</a>
+      <a href="../pages/aboutAuthor.html">Пара слов об авторе</a>
+      <a href="../pages/underConstruction.html">Under construction...</a>
+    </nav>
+  </header>
+  <main>
+    <section>
+      <h2>Регистрация</h2>
+      <p>Ник да пароль - больше ничего не спрашиваю. <s>Пожалуйста, предоставьте нашему сомнительному
+        сайту ваши телефон, почту, аккаунт госуслуг, в/у и паспортные данные, чтобы зарегистрироваться.</s></p>
+      <form id="reg-form" autocomplete="off">
+        <p>
+          <label for="username">Ник (3–20 символов: латиница, цифры, «_», «-»):</label><br>
+          <input type="text" id="username" name="username" maxlength="20" required>
+          <span id="nick-status" class="nick-status"></span>
+        </p>
+        <p>
+          <label for="password">Пароль (от 6 символов):</label><br>
+          <input type="password" id="password" name="password" minlength="6" required>
+        </p>
+        <p>
+          <label for="password2">Пароль ещё раз:</label><br>
+          <input type="password" id="password2" name="password2" minlength="6" required>
+        </p>
+        <!-- honeypot: людям не видно, боты послушно заполняют -->
+        <p class="honeypot" aria-hidden="true">
+          <label for="website">Сайт (не заполнять)</label><br>
+          <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+        </p>
+        <p>
+          <button type="submit" id="btn-register">Зарегистрироваться</button>
+        </p>
+        <div id="reg_message"></div>
+      </form>
+
+      <!-- Задел: показывается только при REQUIRE_VERIFICATION=telegram|email -->
+      <div id="pending-block" style="display: none;">
+        <h3>Осталось подтвердить, что ты не бот</h3>
+        <p>Твой одноразовый код (живёт 20 минут):</p>
+        <p><code id="reg-code" class="reg-code"></code></p>
+        <p>
+          <a id="tg-link" href="#" target="_blank" rel="noopener noreferrer">Открыть бота в Telegram</a>
+          и отправить ему этот код - всё, больше от тебя ничего не нужно.
+          После подтверждения бота можно смело блокировать.
+        </p>
+        <p id="pending-status"></p>
+      </div>
+    </section>
+    <aside>
+      <h2>О регистрации</h2>
+      <p>Ник придумываешь себе сам, пароль тоже. Почта не нужна, телефон не нужен - никаких ПД не нужно. Да, никто не запрещает завести твинк.</p>
+      <p>От ботов защищаемся математикой и прочими хитростями (о них, возможно, напишу в будущем).</p>
+      <h2>Пароль</h2>
+      <p>Хранится только scrypt-хеш с солью - сам пароль не увижу даже я.</p>
+    </aside>
+  </main>
+  <footer>
+    <p>© 2026 Caban Reports</p>
+  </footer>
+  <script src="../scripts/pow.js"></script>
+  <script src="../scripts/reg.js"></script>
+  <script src="../scripts/auth.js"></script>
+</body>
+</html>
