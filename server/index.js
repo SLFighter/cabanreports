@@ -405,9 +405,10 @@ app.get('/api/pages/:page/reactions', async function (req, res) {
   var pageId = pageIdFromRequest(req.params.page);
   if (!pageId) return res.status(400).json({ detail: 'Плохой идентификатор страницы' });
   var counts = await stmts.reactionCounts(pageId);
+  var commentsCount = await stmts.commentsCount(pageId);
   var user = await getSessionUser(req);
   var my = user ? ((await stmts.reactionGet(pageId, user.userId)) || {}).value || 0 : 0;
-  return res.json({ likes: counts.likes, dislikes: counts.dislikes, my: my });
+  return res.json({ likes: counts.likes, dislikes: counts.dislikes, comments: commentsCount, my: my });
 });
 
 app.post('/api/pages/:page/reactions', async function (req, res) {

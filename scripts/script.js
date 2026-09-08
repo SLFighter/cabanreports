@@ -150,7 +150,7 @@
             if (!footer) return;
             const p = footer.querySelector('p');
             if (!p) return;
-            p.textContent = 'Лайки: ' + data.likes + ' | Дизлайки: ' + data.dislikes;
+            p.textContent = 'Лайки: ' + data.likes + ' | Дизлайки: ' + data.dislikes + ' | Комментарии: ' + (data.comments || 0);
           })
           .catch(function () { /* сервер недоступен — оставляем как есть */ })
       );

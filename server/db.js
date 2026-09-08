@@ -196,6 +196,9 @@ const stmts = {
       [pageId]
     ).then((r) => r.rows),
 
+  commentsCount: (pageId) =>
+    h.val('SELECT count(*)::int FROM comments WHERE page_id = $1', [pageId]),
+
   commentInsert: (pageId, userId, displayName, text) =>
     h.one(
       `INSERT INTO comments (page_id, user_id, display_name, text)
