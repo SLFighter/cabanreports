@@ -1,0 +1,7 @@
+{
+  "name": "cabanreports",
+  "private": true,
+  "scripts": {
+    "build:header": "node scripts/build-header.js"
+  }
+}

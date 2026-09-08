@@ -74,6 +74,11 @@
     color: #0000cc;
     text-decoration: underline;
   }
+
+  /* Текущий раздел в навигации: не ссылка */
+  .nav-here {
+    margin-right: 15px;
+  }
   
   /* Основная область */
   main {
