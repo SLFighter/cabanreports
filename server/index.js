@@ -123,7 +123,7 @@ async function getSessionUser(req) {
   var row = await stmts.sessionGet(tokenHash);
   if (!row) return null;
   await stmts.sessionExtend(SESSION_TTL_DAYS, tokenHash);
-  return { userId: row.user_id, username: row.username, anonNick: row.anon_nick };
+  return { userId: row.user_id, username: row.username, anonNick: row.anon_nick, isAdmin: row.is_admin };
 }
 
 async function validateUsername(raw) {
@@ -316,7 +316,7 @@ app.post('/api/auth/login', async function (req, res) {
 app.get('/api/auth/me', async function (req, res) {
   var user = await getSessionUser(req);
   if (!user) return res.json({ username: null, id: null });
-  return res.json({ username: user.username, id: user.userId });
+  return res.json({ username: user.username, id: user.userId, isAdmin: user.isAdmin });
 });
 
 app.post('/api/auth/logout', async function (req, res) {
@@ -430,6 +430,129 @@ app.post('/api/pages/:page/reactions', async function (req, res) {
   var counts = await stmts.reactionCounts(pageId);
   var my = ((await stmts.reactionGet(pageId, user.userId)) || {}).value || 0;
   return res.json({ likes: counts.likes, dislikes: counts.dislikes, my: my });
+});
+
+// ---------- ADMIN ----------
+const { pool } = require('./db');
+
+const ADMIN_TABLES = {
+  users: {
+    pk: ['id'],
+    cols: ['id', 'username', 'anon_nick', 'telegram_id', 'email', 'status', 'is_admin', 'created_at'],
+    editable: ['username', 'anon_nick', 'telegram_id', 'email', 'status'],
+    search: ['username', 'email'],
+    order: 'id',
+  },
+  comments: {
+    pk: ['id'],
+    cols: ['id', 'page_id', 'user_id', 'display_name', 'text', 'created_at'],
+    editable: ['page_id', 'display_name', 'text'],
+    search: ['page_id', 'display_name', 'text'],
+    order: 'id',
+  },
+  reactions: {
+    pk: ['page_id', 'user_id'],
+    cols: ['page_id', 'user_id', 'value', 'updated_at'],
+    editable: ['value'],
+    search: ['page_id'],
+    order: 'updated_at',
+  },
+};
+
+async function requireAdmin(req, res, next) {
+  try {
+    var user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ detail: 'Требуется вход' });
+    if (!user.isAdmin) return res.status(403).json({ detail: 'Только для админа' });
+    req.admin = user;
+    next();
+  } catch (e) { next(e); }
+}
+
+function tableCfg(req, res) {
+  var cfg = ADMIN_TABLES[req.params.table];
+  if (!cfg) res.status(404).json({ detail: 'Нет такой таблицы' });
+  return cfg;
+}
+
+// whereByPk: строим WHERE только из pk-колонок конфига (имена колонок берутся из whitelist, не от клиента)
+function whereByPk(cfg, pk, startIdx) {
+  var params = [], parts = [];
+  for (var i = 0; i < cfg.pk.length; i++) {
+    var v = pk && pk[cfg.pk[i]];
+    if (v === undefined || v === null) return null;
+    params.push(v);
+    parts.push(cfg.pk[i] + ' = $' + (startIdx + i));
+  }
+  return { sql: parts.join(' AND '), params: params };
+}
+
+app.get('/api/admin/tables', requireAdmin, function (req, res) {
+  var out = {};
+  for (var name in ADMIN_TABLES) out[name] = { cols: ADMIN_TABLES[name].cols, editable: ADMIN_TABLES[name].editable, pk: ADMIN_TABLES[name].pk };
+  res.json(out);
+});
+
+app.get('/api/admin/tables/:table', requireAdmin, async function (req, res) {
+  var cfg = tableCfg(req, res); if (!cfg) return;
+  var limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
+  var offset = Math.max(Number(req.query.offset) || 0, 0);
+  var q = String(req.query.q || '').trim();
+  var params = [], where = '';
+  if (q) {
+    params.push('%' + q + '%');
+    where = 'WHERE ' + cfg.search.map(function (c) { return c + '::text ILIKE $1'; }).join(' OR ');
+  }
+  var total = (await pool.query('SELECT count(*)::int AS n FROM ' + req.params.table + ' ' + where, params)).rows[0].n;
+  params.push(limit, offset);
+  var rows = (await pool.query(
+    'SELECT ' + cfg.cols.join(', ') + ' FROM ' + req.params.table + ' ' + where +
+    ' ORDER BY ' + cfg.order + ' DESC LIMIT $' + (params.length - 1) + ' OFFSET $' + params.length, params
+  )).rows;
+  res.json({ total: total, rows: rows });
+});
+
+app.patch('/api/admin/tables/:table', requireAdmin, async function (req, res) {
+  var cfg = tableCfg(req, res); if (!cfg) return;
+  var body = req.body || {};
+  var changes = body.changes || {};
+  var keys = Object.keys(changes).filter(function (k) { return cfg.editable.includes(k); });
+  if (!keys.length) return res.status(400).json({ detail: 'Нечего менять' });
+
+  var sets = [], params = [];
+  keys.forEach(function (k) {
+    var v = changes[k];
+    if (v === '') v = null;
+    params.push(v);
+    sets.push(k + ' = $' + params.length);
+  });
+  if (req.params.table === 'users' && keys.includes('username')) {
+    params.push(String(changes.username).toLowerCase());
+    sets.push('username_lc = $' + params.length);
+  }
+  var w = whereByPk(cfg, body.pk, params.length + 1);
+  if (!w) return res.status(400).json({ detail: 'Нет первичного ключа' });
+  try {
+    var r = await pool.query('UPDATE ' + req.params.table + ' SET ' + sets.join(', ') +
+      ' WHERE ' + w.sql + ' RETURNING ' + cfg.cols.join(', '), params.concat(w.params));
+    if (!r.rowCount) return res.status(404).json({ detail: 'Строка не найдена' });
+    res.json({ row: r.rows[0] });
+  } catch (e) {
+    res.status(400).json({ detail: e.detail || e.message });
+  }
+});
+
+app.delete('/api/admin/tables/:table', requireAdmin, async function (req, res) {
+  var cfg = tableCfg(req, res); if (!cfg) return;
+  var pk = (req.body || {}).pk;
+  if (req.params.table === 'users' && String(pk && pk.id) === String(req.admin.userId)) {
+    return res.status(400).json({ detail: 'Себя удалять нельзя' });
+  }
+  var w = whereByPk(cfg, pk, 1);
+  if (!w) return res.status(400).json({ detail: 'Нет первичного ключа' });
+  var r = await pool.query('DELETE FROM ' + req.params.table + ' WHERE ' + w.sql, w.params);
+  if (!r.rowCount) return res.status(404).json({ detail: 'Строка не найдена' });
+  res.json({ ok: true });
 });
 
 var WEB_ROOT = path.join(__dirname, '..');

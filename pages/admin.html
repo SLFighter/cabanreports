@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Панель админа</title>
+<link rel="stylesheet" href="../styles/style.css">
+<!--<style>
+  body { max-width: 1200px; margin: 0 auto; padding: 16px; }
+  .tabs button { margin-right: 6px; }
+  .tabs button.on { font-weight: bold; text-decoration: underline; }
+  table { border-collapse: collapse; width: 100%; margin-top: 12px; font-size: 14px; }
+  th, td { border: 1px solid #888; padding: 4px 6px; vertical-align: top; }
+  td input { width: 100%; box-sizing: border-box; font: inherit; }
+  td input.saved { outline: 2px solid #3a3; }
+  td input.err { outline: 2px solid #c33; }
+  #msg { color: #c33; min-height: 1.2em; }
+</style>-->
+</head>
+<body>
+    <!-- header:start -->
+<header>
+  <div class="top-auth"><a href="../pages/login.html">Вход</a> &middot; <a href="../pages/register.html">Регистрация</a></div>
+  <pre style="font-family: monospace; line-height: 1.2;">
+  ░█▀▀░█▀█░█▀▄░█▀█░█▀█░░░█▀▄░█▀▀░█▀█░█▀█░█▀▄░▀█▀░█▀▀
+  ░█░░░█▀█░█▀▄░█▀█░█░█░░░█▀▄░█▀▀░█▀▀░█░█░█▀▄░░█░░▀▀█
+  ░▀▀▀░▀░▀░▀▀░░▀░▀░▀░▀░░░▀░▀░▀▀▀░▀░░░▀▀▀░▀░▀░░▀░░▀▀▀
+  </pre>
+  <p>личный блог | МАХимально уютно | Telegramмам - нет | HTML - будет жить</p>
+  <nav>
+<a href="../index.html">На главную</a>
+<a href="../pages/underConstruction.html">Архив</a>
+<a href="../pages/aboutAuthor.html">Пара слов об авторе</a>
+<a href="../pages/underConstruction.html">Under construction...</a>
+  </nav>
+</header>
+<!-- header:end -->
+<main>
+<section>
+<h1>Панель админа</h1>
+<div class="tabs" id="tabs"></div>
+<p>
+  <input id="q" placeholder="поиск...">
+  <button id="prev">←</button> <span id="pageinfo"></span> <button id="next">→</button>
+</p>
+<div id="msg"></div>
+<table id="grid"></table>
+
+<script>
+(async function () {
+  const LIMIT = 50;
+  let meta, table = 'users', offset = 0, total = 0;
+  const $ = (id) => document.getElementById(id);
+  const msg = (t) => { $('msg').textContent = t || ''; };
+
+  async function api(method, url, body) {
+    const r = await fetch(url, {
+      method, headers: { 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.detail || ('HTTP ' + r.status));
+    return data;
+  }
+
+  try { meta = await api('GET', '/api/admin/tables'); }
+  catch (e) { document.body.innerHTML = '<p>Доступ запрещён: ' + e.message + '</p><a href="../index.html">на главную</a>'; return; }
+
+  Object.keys(meta).forEach((name) => {
+    const b = document.createElement('button');
+    b.textContent = name;
+    b.onclick = () => { table = name; offset = 0; $('q').value = ''; load(); };
+    b.dataset.t = name;
+    $('tabs').appendChild(b);
+  });
+
+  async function load() {
+    msg('');
+    document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.t === table));
+    const q = encodeURIComponent($('q').value);
+    const data = await api('GET', `/api/admin/tables/${table}?limit=${LIMIT}&offset=${offset}&q=${q}`);
+    total = data.total;
+    $('pageinfo').textContent = `${Math.min(offset + 1, total)}–${Math.min(offset + LIMIT, total)} из ${total}`;
+    render(data.rows);
+  }
+
+  function render(rows) {
+    const m = meta[table], grid = $('grid');
+    grid.innerHTML = '';
+    const head = grid.insertRow();
+    m.cols.forEach((c) => { const th = document.createElement('th'); th.textContent = c; head.appendChild(th); });
+    head.appendChild(document.createElement('th'));
+
+    rows.forEach((row) => {
+      const tr = grid.insertRow();
+      const pk = {}; m.pk.forEach((k) => { pk[k] = row[k]; });
+
+      m.cols.forEach((c) => {
+        const td = tr.insertCell();
+        if (m.editable.includes(c)) {
+          const inp = document.createElement('input');
+          inp.value = row[c] == null ? '' : row[c];
+          inp.onchange = async () => {
+            try {
+              await api('PATCH', '/api/admin/tables/' + table, { pk, changes: { [c]: inp.value } });
+              inp.className = 'saved'; msg('');
+            } catch (e) { inp.className = 'err'; msg('Ошибка: ' + e.message); }
+          };
+          td.appendChild(inp);
+        } else {
+          td.textContent = row[c] == null ? '' : row[c];
+        }
+      });
+
+      const del = tr.insertCell();
+      const btn = document.createElement('button');
+      btn.textContent = '🗑';
+      btn.onclick = async () => {
+        if (!confirm('Удалить строку из ' + table + '? ' + JSON.stringify(pk))) return;
+        try { await api('DELETE', '/api/admin/tables/' + table, { pk }); load(); }
+        catch (e) { msg('Ошибка: ' + e.message); }
+      };
+      del.appendChild(btn);
+    });
+  }
+
+  $('prev').onclick = () => { offset = Math.max(0, offset - LIMIT); load(); };
+  $('next').onclick = () => { if (offset + LIMIT < total) { offset += LIMIT; load(); } };
+  let t; $('q').oninput = () => { clearTimeout(t); t = setTimeout(() => { offset = 0; load(); }, 300); };
+
+  load();
+})();
+</script>
+</section>
+</main>
+</body>
+</html>
