@@ -27,11 +27,12 @@
   }
 
   async function render() {
-    let username = null;
+    let username = null, isAdmin = false;
     try {
       const resp = await fetch('/api/auth/me');
       const data = await resp.json();
       username = data.username || null;
+      isAdmin = Boolean(data.isAdmin);
     } catch (e) {
       // Сервер недоступен — оставляем статичную плашку как есть
       return;
@@ -41,6 +42,7 @@
 
     box.innerHTML =
       'Привет, <span class="top-auth-name">' + escapeHtml(username) + '</span>' +
+      (isAdmin ? ' · <a href="/pages/admin.html" id="admin-link">Панель админа</a>' : '') +
       ' · <a href="#" id="logout-link">Выйти</a>';
 
     document.getElementById('logout-link').addEventListener('click', async (event) => {
