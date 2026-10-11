@@ -80,6 +80,9 @@ async function migrate() {
       PRIMARY KEY (page_id, user_id)
     );
   `);
+  await pool.query(
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT false;`
+  );
 }
 
 function mkHelpers() {
@@ -162,7 +165,7 @@ const stmts = {
 
   sessionGet: (tokenHash) =>
     h.one(
-      `SELECT s.token_hash, s.expires_at, u.id AS user_id, u.username, u.anon_nick
+      `SELECT s.token_hash, s.expires_at, u.id AS user_id, u.username, u.anon_nick, u.is_admin
        FROM sessions s JOIN users u ON u.id = s.user_id
        WHERE s.token_hash = $1 AND s.expires_at > to_char(now() AT TIME ZONE 'utc', 'YYYY-MM-DD HH24:MI:SS')`,
       [tokenHash]
