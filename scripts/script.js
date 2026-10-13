@@ -20,6 +20,9 @@
 
   let currentUser = null; // { username, id } или null
   let myReaction = 0; // 0 | 1 | -1
+  let replyTo = null; // { id, name }
+  const replyBanner = document.getElementById('reply-banner');
+  const smilePanel = document.getElementById('smile-panel');
 
   function escapeHtml(s) {
     const map = {
@@ -30,6 +33,127 @@
       "'": '&#' + 39 + ';',
     };
     return String(s).replace(/[&<>"']/g, (c) => map[c]);
+  }
+
+  let smiles = new Set();
+  const MARKS = ['**', '__', '*', '~', '='];
+  const TAGS = { '**': 'b', '__': 'u', '*': 'i', '~': 's' };
+  const SMILE_RE = /:([A-Za-z0-9_-]+):/y;
+
+  const isSp = (c) => c !== undefined && /\s/.test(c);
+  const isEscaped = (s, i, len) => isSp(s[i - 1]) && isSp(s[i + len]);
+
+  function matchSmile(s, i) {
+    if (s[i] !== ':') return null;
+    SMILE_RE.lastIndex = i;
+    const m = SMILE_RE.exec(s);
+    return m && smiles.has(m[1]) ? { name: m[1], len: m[0].length } : null;
+  }
+
+  function findClose(s, from, mark) {
+    for (let j = from + 1; j < s.length; j++) {
+      const sm = matchSmile(s, j);
+      if (sm) { j += sm.len - 1; continue; }
+      if (mark === '*' && s.startsWith('**', j)) { j++; continue; }
+      if (s.startsWith(mark, j) && !isEscaped(s, j, mark.length)) return j;
+    }
+    return -1;
+  }
+
+  function render(s) {
+    let out = '', buf = '';
+    const flush = () => { out += escapeHtml(buf); buf = ''; };
+    for (let i = 0; i < s.length;) {
+      const sm = matchSmile(s, i);
+      if (sm) {
+        flush();
+        out += '<img src="/media/smiles/' + sm.name + '.gif" class="emoji" alt=":' + sm.name + ':" title=":' + sm.name + ':">';
+        i += sm.len;
+        continue;
+      }
+      const mark = MARKS.find((m) => s.startsWith(m, i));
+      if (mark && !isEscaped(s, i, mark.length)) {
+        const j = findClose(s, i + mark.length - 1, mark);
+        if (j > 0) {
+          flush();
+          const inner = s.slice(i + mark.length, j);
+          out += mark === '='
+            ? '<code>=' + escapeHtml(inner) + '=</code>'
+            : '<' + TAGS[mark] + '>' + render(inner) + '</' + TAGS[mark] + '>';
+          i = j + mark.length;
+          continue;
+        }
+      }
+      if (mark) { buf += mark; i += mark.length; } else { buf += s[i]; i++; }
+    }
+    flush();
+    return out;
+  }
+  
+  function setReply(c) {
+    replyTo = c ? { id: c.id, name: c.display_name } : null;
+    if (!replyBanner) return;
+    replyBanner.style.display = c ? '' : 'none';
+    replyBanner.innerHTML = '';
+    if (!c) return;
+    replyBanner.appendChild(document.createTextNode('Ответ для ' + c.display_name + ' '));
+    const x = document.createElement('span');
+    x.className = 'comment-delete';
+    x.textContent = 'отменить';
+    x.addEventListener('click', () => setReply(null));
+    replyBanner.appendChild(x);
+    commentInput.focus();
+  }
+  
+  function buildComment(c) {
+    const li = document.createElement('li');
+    li.id = 'c' + c.id;
+    let html = '';
+    if (c.parent_id) {
+      html += '<div class="reply-to">↪ ответ на <a href="#c' + c.parent_id + '">' +
+        escapeHtml(c.parent_name || 'комментарий') + '</a></div>';
+    }
+    html += '<strong>' + escapeHtml(c.display_name) + '</strong>: ' + render(c.text);
+    li.innerHTML = html;
+    if (currentUser) {
+      const rep = document.createElement('span');
+      rep.className = 'comment-delete';
+      rep.textContent = 'ответить';
+      rep.addEventListener('click', () => setReply(c));
+      li.appendChild(rep);
+    }
+    if (c.mine) {
+      const del = document.createElement('span');
+      del.className = 'comment-delete';
+      del.textContent = 'удалить';
+      del.addEventListener('click', () => deleteComment(c.id, li));
+      li.appendChild(del);
+    }
+    return li;
+  }
+  
+  async function loadSmiles() {
+    try {
+      const data = await (await fetch('/api/smiles')).json();
+      smiles = new Set(data.smiles || []);
+    } catch (e) { smiles = new Set(); }
+    if (!smilePanel) return;
+    smilePanel.innerHTML = '';
+    for (const name of smiles) {
+      const img = document.createElement('img');
+      img.src = '/media/smiles/' + name + '.gif';
+      img.className = 'emoji smile-pick';
+      img.title = ':' + name + ':';
+      img.addEventListener('click', () => insertAtCursor(':' + name + ':'));
+      smilePanel.appendChild(img);
+    }
+  }
+  
+  function insertAtCursor(str) {
+    const a = commentInput, s = a.selectionStart, e = a.selectionEnd;
+    a.value = a.value.slice(0, s) + str + a.value.slice(e);
+    a.selectionStart = a.selectionEnd = s + str.length;
+    a.focus();
   }
 
   // ---------- Авторизация ----------
@@ -58,6 +182,7 @@
     const submitRow = submitBtn ? submitBtn.closest('p') : null;
     if (submitRow) submitRow.style.display = loggedIn ? '' : 'none';
     if (submitBtn) submitBtn.disabled = !loggedIn;
+    if (smilePanel) smilePanel.style.display = loggedIn ? '' : 'none';
   }
 
   // ---------- Комментарии ----------
@@ -68,16 +193,7 @@
       const data = await resp.json();
       commentsList.innerHTML = '';
       for (const c of data.comments || []) {
-        const li = document.createElement('li');
-        li.innerHTML = '<strong>' + escapeHtml(c.display_name) + '</strong>: ' + escapeHtml(c.text);
-        if (c.mine) {
-          const del = document.createElement('span');
-          del.className = 'comment-delete';
-          del.textContent = 'удалить';
-          del.addEventListener('click', function () { deleteComment(c.id, li); });
-          li.appendChild(del);
-        }
-        commentsList.appendChild(li);
+        commentsList.appendChild(buildComment(c));
       }
     } catch (e) {
       // сервер недоступен — оставляем пустым
@@ -104,7 +220,7 @@
     const resp = await fetch('/api/pages/' + encodeURIComponent(pageId) + '/comments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: text, anonymous: anonymous }),
+      body: JSON.stringify({ text: text, anonymous: anonymous, parent_id: replyTo ? replyTo.id : null,}),
     });
     if (!resp.ok) {
       const data = await resp.json().catch(() => ({}));
@@ -208,17 +324,9 @@
       const anonymous = anonymousCheckbox ? anonymousCheckbox.checked : false;
       try {
         const { comment } = await submitComment(text, anonymous);
-        const li = document.createElement('li');
-        li.innerHTML = '<strong>' + escapeHtml(comment.display_name) + '</strong>: ' + escapeHtml(comment.text);
-        if (comment.mine) {
-          const del = document.createElement('span');
-          del.className = 'comment-delete';
-          del.textContent = 'удалить';
-          del.addEventListener('click', function () { deleteComment(comment.id, li); });
-          li.appendChild(del);
-        }
-        commentsList.appendChild(li);
+        commentsList.appendChild(buildComment(comment));
         commentInput.value = '';
+        setReply(null);
       } catch (err) {
         alert(err.message);
       }
@@ -231,9 +339,8 @@
   if (dislikeBtn) {
     dislikeBtn.addEventListener('click', () => setReaction(-1));
   }
-
-  checkAuth();
-  loadComments();
+  
+  checkAuth().then(loadSmiles).then(loadComments);
   loadReactions();
   loadIndexCounters();
 })();

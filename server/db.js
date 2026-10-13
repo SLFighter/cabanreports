@@ -81,8 +81,10 @@ async function migrate() {
     );
   `);
   await pool.query(
-    `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT false;`
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT false;
+    ALTER TABLE comments ADD COLUMN IF NOT EXISTS parent_id BIGINT REFERENCES comments(id) ON DELETE SET NULL;`
   );
+  
 }
 
 function mkHelpers() {
@@ -195,19 +197,21 @@ const stmts = {
 
   commentsList: (pageId) =>
     h.q(
-      'SELECT id, user_id, display_name, text, created_at FROM comments WHERE page_id = $1 ORDER BY id ASC LIMIT 500',
-      [pageId]
+      `SELECT c.id, c.user_id, c.display_name, c.text, c.created_at, c.parent_id,
+              p.display_name AS parent_name
+       FROM comments c LEFT JOIN comments p ON p.id = c.parent_id
+       WHERE c.page_id = $1 ORDER BY c.id ASC LIMIT 500`, [pageId]
     ).then((r) => r.rows),
 
   commentsCount: (pageId) =>
     h.val('SELECT count(*)::int FROM comments WHERE page_id = $1', [pageId]),
 
-  commentInsert: (pageId, userId, displayName, text) =>
+  commentInsert: (pageId, userId, displayName, text, parentId) =>
     h.one(
-      `INSERT INTO comments (page_id, user_id, display_name, text)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, display_name, text, created_at`,
-      [pageId, userId, displayName, text]
+      `INSERT INTO comments (page_id, user_id, display_name, text, parent_id)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, display_name, text, created_at, parent_id`,
+      [pageId, userId, displayName, text, parentId]
     ),
 
   commentCountRecent: (userId) =>
@@ -218,7 +222,7 @@ const stmts = {
     ),
 
   commentGetById: (id) =>
-    h.one('SELECT id, display_name, text, created_at FROM comments WHERE id = $1', [id]),
+    h.one('SELECT id, page_id, display_name, text, created_at FROM comments WHERE id = $1', [id]),
 
   commentDeleteByAuthor: (id, userId) =>
     h.run('DELETE FROM comments WHERE id = $1 AND user_id = $2', [id, userId]),

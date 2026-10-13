@@ -342,6 +342,8 @@ app.get('/api/pages/:page/comments', async function (req, res) {
       text: r.text,
       created_at: r.created_at,
       mine: Boolean(user && r.user_id === user.userId),
+      parent_id: r.parent_id,
+      parent_name: r.parent_name
     };
   });
   return res.json({ comments: comments });
@@ -379,7 +381,17 @@ app.post('/api/pages/:page/comments', async function (req, res) {
     displayName = user.username;
   }
 
-  var created = await stmts.commentInsert(pageId, user.userId, displayName, text);
+  var parentId = null, parentName = null;
+  if (body.parent_id != null) {
+    parentId = Number(body.parent_id);
+    var parent = Number.isInteger(parentId) && parentId > 0 ? await stmts.commentGetById(parentId) : null;
+    if (!parent || parent.page_id !== pageId) {
+      return res.status(400).json({ detail: 'Комментарий, на который вы отвечаете, не найден' });
+    }
+    parentName = parent.display_name;
+  }
+  var created = await stmts.commentInsert(pageId, user.userId, displayName, text, parentId);
+  created.parent_name = parentName;
   created.mine = true;
   return res.status(201).json({ comment: created });
 });
@@ -553,6 +565,16 @@ app.delete('/api/admin/tables/:table', requireAdmin, async function (req, res) {
   var r = await pool.query('DELETE FROM ' + req.params.table + ' WHERE ' + w.sql, w.params);
   if (!r.rowCount) return res.status(404).json({ detail: 'Строка не найдена' });
   res.json({ ok: true });
+});
+
+var SMILES_DIR = path.join(__dirname, '..', 'media', 'smiles');
+app.get('/api/smiles', function (req, res) {
+  fs.readdir(SMILES_DIR, function (err, files) {
+    if (err) return res.json({ smiles: [] });
+    var names = files.filter(function (f) { return /^[A-Za-z0-9_-]+\.gif$/i.test(f); })
+      .map(function (f) { return f.replace(/\.gif$/i, ''); }).sort();
+    res.json({ smiles: names });
+  });
 });
 
 var WEB_ROOT = path.join(__dirname, '..');
