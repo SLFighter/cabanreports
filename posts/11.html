@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <link rel="stylesheet" href="../styles/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- ЗАГОЛОВОК ПОСТА (для вкладки браузера) -->
+    <title>Каментный апдейт!</title>
+</head>
+<body>
+<!-- header:start -->
+<header>
+  <div class="top-auth"><a href="../pages/login.html">Вход</a> &middot; <a href="../pages/register.html">Регистрация</a></div>
+  <pre style="font-family: monospace; line-height: 1.2;">
+  ░█▀▀░█▀█░█▀▄░█▀█░█▀█░░░█▀▄░█▀▀░█▀█░█▀█░█▀▄░▀█▀░█▀▀
+  ░█░░░█▀█░█▀▄░█▀█░█░█░░░█▀▄░█▀▀░█▀▀░█░█░█▀▄░░█░░▀▀█
+  ░▀▀▀░▀░▀░▀▀░░▀░▀░▀░▀░░░▀░▀░▀▀▀░▀░░░▀▀▀░▀░▀░░▀░░▀▀▀
+  </pre>
+  <p>личный блог | МАХимально уютно | Telegramмам - нет | HTML - будет жить</p>
+  <nav>
+<a href="../index.html">На главную</a>
+<a href="../pages/underConstruction.html">Архив</a>
+<a href="../pages/aboutAuthor.html">Пара слов об авторе</a>
+<a href="../pages/underConstruction.html">Under construction...</a>
+  </nav>
+</header>
+<!-- header:end -->
+    <main>
+        <section>
+            <article>
+                <!-- ЗАГОЛОВОК ПОСТА -->
+                <h2>Каментный апдейт!</h2>
+                <!-- ДАТА ПУБЛИКАЦИИ, напр.: 06.09.2026 воскресенье 12:00 -->
+                <p id="date">14.10.2026 среда 00:48</p>
+                <h3>Ого, админ соизволил что-то сделать</h3>
+                <!-- ТЕКСТ ПОСТА -->
+                <p>
+                    Встречайте <i>Каментный апдейт</i>!<br>
+                    Теперь в комментариях можно:<br><br>
+                    <strong>1.</strong> *<i>курсивить</i>*<br><br>
+                    <strong>2.</strong> **<b>жирнить</b>**<br><br>
+                    <strong>3.</strong> __ <u>выделять подлежащее в предложении</u> __<br><br>
+                    <strong>4.</strong> ~<s>вычеркивать продукт из списка покупок</s>~<br><br>
+                    <strong>5.</strong> писать формулы LaTeX: <b><pre><code>$\int\dfrac{1}{x}dx=\ln|x|+C$</code></pre></b> А, ой. Нет, так еще нельзя<br><br>
+                    <strong>6.</strong> отвечать на комментарии<br>
+                    <strong>7.</strong> НУ И КОНЕЧНО ЖЕ ВСТАВЛЯТЬ <img src="../media/smiles/tease.gif" class="emoji"> НАШИХ ЛЮБИМЫХ КОЛОБКОВ!!!<br><br>
+                    Все бегом проверяем новый функционал! ( =А такое форматирование работает?...= )
+                    И, кстати, да. Чтобы экранировать * или другой символ, ответственный за форматирование, достаточно просто слева и справа от него поставить пробел.
+                </p>
+                <footer>
+                    <p>
+                        Мне нравится: <span id="likes-count">0</span> |
+                        Отстой: <span id="dislikes-count">0</span>
+                    </p>
+                    <p>
+                        <button type="button" id="like-btn">Мне нравится</button>
+                        <button type="button" id="dislike-btn">Отстой</button>
+                    </p>
+                    <a href="../index.html">На главную</a>
+                </footer>
+            </article>
+        </section>
+        <section>
+            <h3>Оставить комментарий к посту</h3>
+            <form action="#" method="post" id="comment-form">
+              <p>
+                <div id="comment-login-prompt" class="comment-login-prompt">
+                  Сначала <a href="../pages/login.html">деанонимизируйтесь</a>
+                </div>
+                <textarea id="comment" name="comment" rows="6" cols="40" style="display:none;"></textarea>
+              </p>
+              <p>
+                <label><input type="checkbox" id="anonymous" name="anonymous" style="display:none;"> опубликовать анонимно</label>
+              </p>
+              <p>
+                <button type="submit" disabled>Отправить</button>
+              </p>
+            </form>
+            <h3>Комментарии</h3>
+            <form id="comments-form">
+                <ul id="comments-list"></ul>
+            </form>
+        </section>
+    </main>
+    <footer>
+    <p>© 2026 Caban Reports</p>
+    </footer>
+    <script src="../scripts/script.js"></script>
+  <script src="../scripts/auth.js"></script>
+</body>
+</html>
