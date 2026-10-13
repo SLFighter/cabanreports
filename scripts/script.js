@@ -20,9 +20,31 @@
 
   let currentUser = null; // { username, id } или null
   let myReaction = 0; // 0 | 1 | -1
+  
   let replyTo = null; // { id, name }
-  const replyBanner = document.getElementById('reply-banner');
-  const smilePanel = document.getElementById('smile-panel');
+
+  function ensureEl(id, tag, className) {
+    let el = document.getElementById(id);
+    if (!el && commentInput) {
+      el = document.createElement(tag);
+      el.id = id;
+      if (className) el.className = className;
+      el.style.display = 'none';
+      commentInput.parentNode.insertBefore(el, commentInput);
+    }
+    return el;
+  }
+  const replyBanner = ensureEl('reply-banner', 'div', 'reply-banner');
+  const smilePanel = ensureEl('smile-panel', 'div', 'smile-panel');
+  let smileToggle = document.getElementById('smile-toggle');
+  if (!smileToggle && commentInput) {
+    smileToggle = document.createElement('button');
+    smileToggle.type = 'button';
+    smileToggle.id = 'smile-toggle';
+    smileToggle.textContent = '☺ Колобки';
+    smileToggle.style.display = 'none';
+    commentInput.parentNode.insertBefore(smileToggle, commentInput);
+  }
 
   function escapeHtml(s) {
     const map = {
@@ -182,7 +204,8 @@
     const submitRow = submitBtn ? submitBtn.closest('p') : null;
     if (submitRow) submitRow.style.display = loggedIn ? '' : 'none';
     if (submitBtn) submitBtn.disabled = !loggedIn;
-    if (smilePanel) smilePanel.style.display = loggedIn ? '' : 'none';
+    if (smileToggle) smileToggle.style.display = loggedIn ? '' : 'none';
+    if (smilePanel && !loggedIn) smilePanel.style.display = 'none';
   }
 
   // ---------- Комментарии ----------
@@ -333,13 +356,21 @@
     });
   }
 
+  if (smileToggle && smilePanel) {
+    smileToggle.addEventListener('click', function () {
+      const open = smilePanel.style.display === 'none';
+      smilePanel.style.display = open ? '' : 'none';
+      smileToggle.textContent = open ? '☺ Скрыть колобков' : '☺ Колобки';
+    });
+  }
+
   if (likeBtn) {
     likeBtn.addEventListener('click', () => setReaction(1));
   }
   if (dislikeBtn) {
     dislikeBtn.addEventListener('click', () => setReaction(-1));
   }
-  
+
   checkAuth().then(loadSmiles).then(loadComments);
   loadReactions();
   loadIndexCounters();
