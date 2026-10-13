@@ -35,16 +35,29 @@
     return el;
   }
   const replyBanner = ensureEl('reply-banner', 'div', 'reply-banner');
-  const smilePanel = ensureEl('smile-panel', 'div', 'smile-panel');
+  let smilePanel = document.getElementById('smile-panel');
   let smileToggle = document.getElementById('smile-toggle');
-  if (!smileToggle && commentInput) {
+  if (!smilePanel && !smileToggle && commentInput) {
+    const wrap = document.createElement('div');
+    wrap.className = 'smile-wrap';
+    wrap.id = 'smile-wrap';
+    wrap.style.display = 'none';
+
     smileToggle = document.createElement('button');
     smileToggle.type = 'button';
     smileToggle.id = 'smile-toggle';
     smileToggle.textContent = '☺ Колобки';
-    smileToggle.style.display = 'none';
-    commentInput.parentNode.insertBefore(smileToggle, commentInput);
+
+    smilePanel = document.createElement('div');
+    smilePanel.id = 'smile-panel';
+    smilePanel.className = 'smile-panel';
+    smilePanel.style.display = 'none';
+
+    wrap.appendChild(smileToggle);
+    wrap.appendChild(smilePanel);
+    commentInput.parentNode.insertBefore(wrap, commentInput);
   }
+  const smileWrap = document.getElementById('smile-wrap');
 
   function escapeHtml(s) {
     const map = {
@@ -204,7 +217,7 @@
     const submitRow = submitBtn ? submitBtn.closest('p') : null;
     if (submitRow) submitRow.style.display = loggedIn ? '' : 'none';
     if (submitBtn) submitBtn.disabled = !loggedIn;
-    if (smileToggle) smileToggle.style.display = loggedIn ? '' : 'none';
+    if (smileWrap) smileWrap.style.display = loggedIn ? '' : 'none';
     if (smilePanel && !loggedIn) smilePanel.style.display = 'none';
   }
 
@@ -363,6 +376,20 @@
       smileToggle.textContent = open ? '☺ Скрыть колобков' : '☺ Колобки';
     });
   }
+
+  document.addEventListener('click', function (e) {
+    if (!smilePanel || smilePanel.style.display === 'none') return;
+    if (smileWrap && smileWrap.contains(e.target)) return;
+    smilePanel.style.display = 'none';
+    if (smileToggle) smileToggle.textContent = '☺ Колобки';
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && smilePanel && smilePanel.style.display !== 'none') {
+      smilePanel.style.display = 'none';
+      if (smileToggle) smileToggle.textContent = '☺ Колобки';
+    }
+  });
 
   if (likeBtn) {
     likeBtn.addEventListener('click', () => setReaction(1));

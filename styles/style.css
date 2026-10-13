@@ -371,3 +371,36 @@
     border-color: #3333aa;
     color: #111166;
   }
+
+  .smile-wrap {
+    position: relative;
+    display: inline-block;
+  }
+  
+  .smile-panel {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 10;
+    width: 260px;
+    height: 160px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: #ffffff;
+    border: 1px solid #999999;
+    box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.25);
+    padding: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: #999999 #e0e0e0;
+  }
+  
+  .smile-pick {
+    cursor: pointer;
+    margin: 2px;
+    max-width: 48px;
+    max-height: 48px;
+  }
+  
+  .smile-pick:hover {
+    background: #e8e8ff;
+  }
