@@ -2,32 +2,36 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<title>Панель админа</title>
-<!--<style>
-  body { max-width: 1200px; margin: 0 auto; padding: 16px; }
-  .tabs button { margin-right: 6px; }
-  .tabs button.on { font-weight: bold; text-decoration: underline; }
-  table { border-collapse: collapse; width: 100%; margin-top: 12px; font-size: 14px; }
-  th, td { border: 1px solid #888; padding: 4px 6px; vertical-align: top; }
-  td input { width: 100%; box-sizing: border-box; font: inherit; }
-  td input.saved { outline: 2px solid #3a3; }
-  td input.err { outline: 2px solid #c33; }
-  #msg { color: #c33; min-height: 1.2em; }
-</style>-->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="../styles/style.css">
+<title>Панель админа - Кабаньи сводки</title>
 </head>
 <body>
-<h1>Панель админа</h1>
-<div class="tabs" id="tabs"></div>
-<p>
-  <input id="q" placeholder="поиск...">
-  <button id="prev">←</button> <span id="pageinfo"></span> <button id="next">→</button>
-</p>
-<div id="msg"></div>
-<table id="grid"></table>
+<!-- header:start -->
+<!-- тот же блок header, что в login.html -->
+<!-- header:end -->
+<main>
+  <section class="admin">
+    <p><a href="../index.html">← на сайт</a></p>
+    <h2>Панель админа</h2>
+    <div class="tabs" id="tabs"></div>
+    <div class="admin-toolbar">
+      <input type="text" id="q" placeholder="поиск...">
+      <button id="prev">←</button>
+      <span id="pageinfo"></span>
+      <button id="next">→</button>
+    </div>
+    <div id="msg"></div>
+    <div class="grid-wrap"><table id="grid"></table></div>
+  </section>
+</main>
+<footer><p>© 2026 Caban Reports</p></footer>
 
 <script>
 (async function () {
   const LIMIT = 50;
+  const USER_TABLE = 'users';
+  const NICK_COLS = ['username', 'nick', 'login'];
   let meta, table = 'users', offset = 0, total = 0;
   const $ = (id) => document.getElementById(id);
   const msg = (t) => { $('msg').textContent = t || ''; };
@@ -43,7 +47,12 @@
   }
 
   try { meta = await api('GET', '/api/admin/tables'); }
-  catch (e) { document.body.innerHTML = '<p>Доступ запрещён: ' + e.message + '</p><a href="../index.html">на главную</a>'; return; }
+  catch (e) {
+    document.querySelector('main').innerHTML =
+      '<section class="admin"><p>Доступ запрещён: ' + e.message +
+      '</p><p><a href="../index.html">на главную</a></p></section>';
+    return;
+  }
 
   Object.keys(meta).forEach((name) => {
     const b = document.createElement('button');
@@ -52,6 +61,16 @@
     b.dataset.t = name;
     $('tabs').appendChild(b);
   });
+
+  const short = (v) => {
+    const s = v == null ? '' : String(v);
+    return s.length > 80 ? s.slice(0, 80) + '…' : s;
+  };
+  const rowLines = (m, row) => m.cols.map((c) => c + ': ' + short(row[c])).join('\n');
+  const nickOf = (row) => {
+    const k = NICK_COLS.find((c) => row[c] != null);
+    return k ? String(row[k]) : null;
+  };
 
   async function load() {
     msg('');
@@ -78,10 +97,20 @@
         const td = tr.insertCell();
         if (m.editable.includes(c)) {
           const inp = document.createElement('input');
-          inp.value = row[c] == null ? '' : row[c];
+          let old = row[c] == null ? '' : String(row[c]);
+          inp.value = old;
           inp.onchange = async () => {
+            const nv = inp.value;
+            if (nv === old) return;
+            const ok = confirm(
+              'действительно изменить поле «' + c + '» в следующих строках:\n' +
+              rowLines(m, row) + '\n' +
+              c + ': ' + short(old) + ' → ' + short(nv) + '\n?'
+            );
+            if (!ok) { inp.value = old; inp.className = ''; return; }
             try {
-              await api('PATCH', '/api/admin/tables/' + table, { pk, changes: { [c]: inp.value } });
+              await api('PATCH', '/api/admin/tables/' + table, { pk, changes: { [c]: nv } });
+              old = nv; row[c] = nv;
               inp.className = 'saved'; msg('');
             } catch (e) { inp.className = 'err'; msg('Ошибка: ' + e.message); }
           };
@@ -95,7 +124,19 @@
       const btn = document.createElement('button');
       btn.textContent = '🗑';
       btn.onclick = async () => {
-        if (!confirm('Удалить строку из ' + table + '? ' + JSON.stringify(pk))) return;
+        if (table === USER_TABLE) {
+          const nick = nickOf(row);
+          if (nick == null) { msg('Ошибка: не найдена колонка с ником (' + NICK_COLS.join('/') + ')'); return; }
+          const typed = prompt('для подтверждения удаления юзера введи ник:\n' + rowLines(m, row));
+          if (typed === null) return;
+          if (typed.trim() !== nick) { msg('Ник не совпал, удаление отменено'); return; }
+        } else {
+          const ok = confirm(
+            'действительно удалить запись из «' + table + '» в следующих строках:\n' +
+            rowLines(m, row) + '\n?'
+          );
+          if (!ok) return;
+        }
         try { await api('DELETE', '/api/admin/tables/' + table, { pk }); load(); }
         catch (e) { msg('Ошибка: ' + e.message); }
       };
