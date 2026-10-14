@@ -2,6 +2,7 @@ account
 startup.txt
 STRUCTURE.md
 pages/postBuilder.html
+dev.py
 
 # --- Сервер ---
 server/node_modules/
