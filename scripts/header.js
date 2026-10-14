@@ -8,7 +8,7 @@
 // активный пункт страницы (он рендерится обычным текстом, а не ссылкой).
 const NAV_ITEMS = [
   { id: 'home',    href: 'index.html',                  text: 'На главную' },
-  { id: 'archive', href: 'pages/underConstruction.html', text: 'Архив' },
+  { id: 'archive', href: 'pages/archive.html', text: 'Архив' },
   { id: 'author',  href: 'pages/aboutAuthor.html',       text: 'Пара слов об авторе' },
   { id: 'uc',      href: 'pages/underConstruction.html', text: 'Under construction...' },
 ];

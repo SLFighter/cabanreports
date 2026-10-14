@@ -16,7 +16,8 @@ const ROOT = path.join(__dirname, '..');
 const ACTIVE_BY_PAGE = {
   'index.html': ['home'],
   'pages/aboutAuthor.html': ['author'],
-  'pages/underConstruction.html': ['archive', 'uc'], // обе записи ведут на underConstruction.html
+  'pages/archive.html': ['archive'],
+  'pages/underConstruction.html': ['uc'], // обе записи ведут на underConstruction.html
   'pages/login.html': [],
   'pages/register.html': [],
 };
