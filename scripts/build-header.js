@@ -55,6 +55,7 @@ function processFile(relFile) {
 function walk(dir, ext, out) {
   for (const name of fs.readdirSync(dir)) {
     const p = path.join(dir, name);
+    if (name.startsWith('admin')) continue;
     if (fs.statSync(p).isDirectory()) walk(p, ext, out);
     else if (name.endsWith(ext)) out.push(p);
   }
