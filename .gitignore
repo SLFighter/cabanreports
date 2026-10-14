@@ -1,6 +1,7 @@
 account
 startup.txt
 STRUCTURE.md
+pages/postBuilder.html
 
 # --- Сервер ---
 server/node_modules/
