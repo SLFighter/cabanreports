@@ -15,6 +15,8 @@
     var tool = 's', angle = 0, canDraw = false, drawing = false;
     var last = null, queue = [], holdTimer = null, flushing = false;
     var bucketLeft = 0;
+    var splashAudio = new Audio('../media/sounds/splash.mp3');
+    splashAudio.volume = 0.6;
   
     // ---------- звук ----------
     var actx = null;
@@ -29,34 +31,9 @@
     document.addEventListener('keydown', unlockAudio);
   
     function playSplash() {
-      if (!actx || actx.state !== 'running') return;
-      var t0 = actx.currentTime, dur = 0.7;
-  
-      var nb = actx.createBuffer(1, Math.floor(actx.sampleRate * dur), actx.sampleRate);
-      var data = nb.getChannelData(0);
-      for (var i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-      var noise = actx.createBufferSource();
-      noise.buffer = nb;
-      var bp = actx.createBiquadFilter();
-      bp.type = 'bandpass'; bp.Q.value = 0.8;
-      bp.frequency.setValueAtTime(4000, t0);
-      bp.frequency.exponentialRampToValueAtTime(300, t0 + dur);
-      var ng = actx.createGain();
-      ng.gain.setValueAtTime(0.0001, t0);
-      ng.gain.exponentialRampToValueAtTime(0.5, t0 + 0.03);
-      ng.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-      noise.connect(bp); bp.connect(ng); ng.connect(actx.destination);
-      noise.start(t0);
-  
-      var osc = actx.createOscillator();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(220, t0);
-      osc.frequency.exponentialRampToValueAtTime(55, t0 + 0.35);
-      var og = actx.createGain();
-      og.gain.setValueAtTime(0.5, t0);
-      og.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.4);
-      osc.connect(og); og.connect(actx.destination);
-      osc.start(t0); osc.stop(t0 + 0.45);
+      var a = splashAudio.cloneNode();
+      a.volume = splashAudio.volume;
+      a.play().catch(function () {});
     }
   
     // ---------- отрисовка и синхронизация ----------
