@@ -12,7 +12,7 @@ ENV NODE_ENV=production \
 WORKDIR /app
 COPY --from=deps /app/node_modules ./server/node_modules
 COPY server/package.json ./server/package.json
-COPY server/db.js server/index.js server/tgbot.js ./server/
+COPY server/db.js server/index.js server/tgbot.js server/fence.js ./server/
 COPY index.html ./index.html
 COPY pages ./pages
 COPY posts ./posts
@@ -21,7 +21,6 @@ COPY styles ./styles
 COPY media ./media
 COPY archive ./archive
 COPY nicks.csv ./nicks.csv
-COPY fence.html ./pages/fence.html
 
 RUN chown -R app:app /app
 USER app

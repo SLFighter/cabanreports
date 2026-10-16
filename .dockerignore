@@ -4,4 +4,3 @@ server/node_modules
 server/.env
 server/server.log
 server/server.err.log
-server/fence.js
