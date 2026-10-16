@@ -577,11 +577,13 @@ app.get('/api/smiles', function (req, res) {
   });
 });
 
+const fence = require('./fence')(app, { pool, getSessionUser });
 var WEB_ROOT = path.join(__dirname, '..');
 app.use(express.static(WEB_ROOT, { extensions: ['html'] }));
 
 async function main() {
   await migrate();
+  await fence.init();
   app.listen(PORT, function () {
     console.log('[cabanreports] сервер: http://localhost:' + PORT);
     console.log('[cabanreports] верификация: ' + REQUIRE_VERIFICATION);

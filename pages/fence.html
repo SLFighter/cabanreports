@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <link rel="stylesheet" href="../styles/style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Забор</title>
+  <style>
+    #fence-tools { margin: 8px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    #fence-tools button.on { outline: 2px solid #000; font-weight: bold; }
+  </style>
+</head>
+<body>
+<!-- header:start -->
+<header>
+  <div class="top-auth"><a href="../pages/login.html">Вход</a> &middot; <a href="../pages/register.html">Регистрация</a></div>
+  <pre style="font-family: monospace; line-height: 1.2;">
+  ░█▀▀░█▀█░█▀▄░█▀█░█▀█░░░█▀▄░█▀▀░█▀█░█▀█░█▀▄░▀█▀░█▀▀
+  ░█░░░█▀█░█▀▄░█▀█░█░█░░░█▀▄░█▀▀░█▀▀░█░█░█▀▄░░█░░▀▀█
+  ░▀▀▀░▀░▀░▀▀░░▀░▀░▀░▀░░░▀░▀░▀▀▀░▀░░░▀▀▀░▀░▀░░▀░░▀▀▀
+  </pre>
+  <p>личный блог | МАХимально уютно | Telegramмам - нет | HTML - будет жить</p>
+  <nav>
+<a href="../index.html">На главную</a>
+<a href="../pages/archive.html">Архив</a>
+<a href="../pages/aboutAuthor.html">Пара слов об авторе</a>
+<a href="../pages/underConstruction.html">Under construction...</a>
+  </nav>
+</header>
+<!-- header:end -->
+
+<main>
+<section>
+  <h2>Забор</h2>
+  <p id="fence-status">Загрузка...</p>
+  <div id="fence-tools">
+    <button data-tool="s" class="on">Баллончик</button>
+    <button data-tool="m">Маркер</button>
+    <button data-tool="b">Кисть (крутить колесом)</button>
+    <button data-tool="k" id="fence-bucket">Ведро краски</button>
+    <input type="color" id="fence-color" value="#ff3b30">
+    <span id="fence-angle"></span>
+  </div>
+  <canvas id="fence" width="800" height="450"
+    style="image-rendering:pixelated;width:100%;max-width:1600px;cursor:crosshair;touch-action:none;border:2px solid #000"></canvas>
+  <p><small>Какой хороший я построил забор... Почему бы не оставить его здесь? Что может пойти не так?</small></p>
+</section>
+</main>
+
+<script src="../scripts/fence-core.js"></script>
+<script src="../scripts/fence.js"></script>
+<script src="../scripts/auth.js"></script>
+</body>
+</html>
