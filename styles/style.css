@@ -404,3 +404,13 @@
   .smile-pick:hover {
     background: #e8e8ff;
   }
+
+  a[type="fence_link"] {
+    text-decoration: none;
+    transition: color .2s;
+  }
+  a[type="fence_link"]:link    { color: #555555; text-decoration: underline; }
+  a[type="fence_link"]:visited { color: #555555; text-decoration: underline; }
+  a[type="fence_link"]:hover   { color: #f4511e; text-decoration: underline; }
+ /* a[type="fence_link"]:focus   { outline: 2px solid #f4511e; outline-offset: 2px; } */
+  a[type="fence_link"]:active  { color: #c0392b; }
