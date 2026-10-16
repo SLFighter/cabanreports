@@ -10,8 +10,8 @@ const NAV_ITEMS = [
   { id: 'home',    href: 'index.html',                  text: 'На главную' },
   { id: 'archive', href: 'pages/archive.html', text: 'Архив' },
   { id: 'author',  href: 'pages/aboutAuthor.html',       text: 'Пара слов об авторе' },
-  { id: 'uc',      href: 'pages/underConstruction.html', text: 'Under construction...' },
   { id: 'fence',      href: 'pages/fence.html', text: 'Забор' },
+  { id: 'uc',      href: 'pages/underConstruction.html', text: 'Under construction...' },
 ];
 
 // Логотип и слоган
