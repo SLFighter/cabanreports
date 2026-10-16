@@ -234,10 +234,10 @@
       canDraw = Boolean(me && me.username);
       statusEl.textContent = '';
       if (canDraw) {
-        statusEl.textContent = 'И что же ты сделаешь?';
+        statusEl.textContent = '';
         syncBucket();
       } else {
-        statusEl.appendChild(document.createTextNode('Смотреть можно всем, рисовать только после '));
+        statusEl.appendChild(document.createTextNode('Смотреть можно всем, портить только после '));
         var a = document.createElement('a');
         a.href = 'login.html';
         a.textContent = 'входа';

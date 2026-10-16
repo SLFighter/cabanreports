@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { id: 'archive', href: 'pages/archive.html', text: 'Архив' },
   { id: 'author',  href: 'pages/aboutAuthor.html',       text: 'Пара слов об авторе' },
   { id: 'uc',      href: 'pages/underConstruction.html', text: 'Under construction...' },
+  { id: 'fence',      href: 'pages/fence.html', text: 'Забор' },
 ];
 
 // Логотип и слоган
@@ -19,7 +20,7 @@ const LOGO = [
   '  ░█░░░█▀█░█▀▄░█▀█░█░█░░░█▀▄░█▀▀░█▀▀░█░█░█▀▄░░█░░▀▀█',
   '  ░▀▀▀░▀░▀░▀▀░░▀░▀░▀░▀░░░▀░▀░▀▀▀░▀░░░▀▀▀░▀░▀░░▀░░▀▀▀',
 ].join('\n');
-const TAGLINE = 'личный блог | МАХимально уютно | Telegramмам - нет | HTML - будет жить | <a type="fence_link" href="pages/fence.html">Забор</a>';
+const TAGLINE = 'личный блог | МАХимально уютно | Telegramмам - нет | HTML - будет жить';
 
 // Шапка для конкретной страницы.
 // prefix — относительный путь от страницы до корня сайта ('' или '../').

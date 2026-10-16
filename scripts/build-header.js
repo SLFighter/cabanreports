@@ -18,6 +18,7 @@ const ACTIVE_BY_PAGE = {
   'pages/aboutAuthor.html': ['author'],
   'pages/archive.html': ['archive'],
   'pages/underConstruction.html': ['uc'], // обе записи ведут на underConstruction.html
+  'pages/fence.html': ['fence'],
   'pages/login.html': [],
   'pages/register.html': [],
 };
