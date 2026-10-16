@@ -21,6 +21,7 @@ COPY styles ./styles
 COPY media ./media
 COPY archive ./archive
 COPY nicks.csv ./nicks.csv
+COPY fence.html ./fence
 
 RUN chown -R app:app /app
 USER app
