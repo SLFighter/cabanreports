@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <link rel="stylesheet" href="../styles/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Небольшой апдейт</title>
+</head>
+<body>
+<!-- header:start -->
+<header>
+  <div class="top-auth"><a href="../pages/login.html">Вход</a> &middot; <a href="../pages/register.html">Регистрация</a></div>
+  <pre style="font-family: monospace; line-height: 1.2;">
+  ░█▀▀░█▀█░█▀▄░█▀█░█▀█░░░█▀▄░█▀▀░█▀█░█▀█░█▀▄░▀█▀░█▀▀
+  ░█░░░█▀█░█▀▄░█▀█░█░█░░░█▀▄░█▀▀░█▀▀░█░█░█▀▄░░█░░▀▀█
+  ░▀▀▀░▀░▀░▀▀░░▀░▀░▀░▀░░░▀░▀░▀▀▀░▀░░░▀▀▀░▀░▀░░▀░░▀▀▀
+  </pre>
+  <p>личный блог | МАХимально уютно | Telegramмам - нет | HTML - будет жить</p>
+  <nav>
+<a href="../index.html">На главную</a>
+<a href="../pages/archive.html">Архив</a>
+<a href="../pages/aboutAuthor.html">Пара слов об авторе</a>
+<a href="../pages/fence.html">Забор</a>
+<a href="../pages/underConstruction.html">Under construction...</a>
+  </nav>
+</header>
+<!-- header:end -->
+    <main>
+        <section>
+            <article>
+                <h2>Небольшой апдейт</h2>
+                <p id="date">17.10.2026 суббота 22:52</p>
+                <h3>круто... а большой когда будет уже?</h3>
+                <p>
+                    Как некоторые из вас могли заметить, на сайте появился <a href="../pages/fence.html">забор</a>. Его назначение в целом и так всем ясно<img src="../media/smiles/paint3.gif" style="max-width:100%">. У меня была такая идея уже некоторое время, но в предложенном многоуважаемым <b>Danila-Master</b> варианте этот раздел будет поинтереснее. Большая ему благодарность за идею!<br><br>
+                    Еще не могу не поделиться радостной новостью! Многоуважаемый Морд Фондео наконец-то выехал из гаража, порадовав всех окружающих шикарным звуком прогоревшей гофры, и без каких либо приключений довез пятую точку админа до дома.<br><br>
+                    Пост как обычно пишется мной из замечательной электрички ЭД4М, на сей раз, мне достается счастье наслаждаться ароматом чипсов <i>Bon Giorno</i><img src="../media/smiles/buba.gif" style="max-width:100%">, сухариков с чесноком и бутербродов с колбасой, которые едят какие-то <s>изрядно подвыпившие</s> женщины. Аж кушать захотелось... Если админ сможет пережить свой голод и успешно доехать до <i>Vovan's country cottage</i>, то, возможно, на этих выходных будет начата работа над крупным апдейтом<img src="../media/smiles/download.gif" style="max-width:100%">. Надолго не прощаюсь, до новых встреч!
+                </p>
+                <footer>
+                    <p>
+                        Мне нравится: <span id="likes-count">0</span> |
+                        Отстой: <span id="dislikes-count">0</span>
+                    </p>
+                    <p>
+                        <button type="button" id="like-btn">Мне нравится</button>
+                        <button type="button" id="dislike-btn">Отстой</button>
+                    </p>
+                    <a href="../index.html">На главную</a>
+                </footer>
+            </article>
+        </section>
+        <section>
+            <h3>Оставить комментарий к посту</h3>
+            <form action="#" method="post" id="comment-form">
+              <p>
+                <div id="comment-login-prompt" class="comment-login-prompt">
+                  Сначала <a href="../pages/login.html">деанонимизируйтесь</a>
+                </div>
+                <textarea id="comment" name="comment" rows="6" cols="40" style="display:none;"></textarea>
+              </p>
+              <p>
+                <label><input type="checkbox" id="anonymous" name="anonymous" style="display:none;"> опубликовать анонимно</label>
+              </p>
+              <p>
+                <button type="submit" disabled>Отправить</button>
+              </p>
+            </form>
+            <h3>Комментарии</h3>
+            <form id="comments-form">
+                <ul id="comments-list"></ul>
+            </form>
+        </section>
+    </main>
+    <footer>
+    <p>© 2026 Caban Reports</p>
+    </footer>
+    <script src="../scripts/script.js"></script>
+  <script src="../scripts/auth.js"></script>
+</body>
+</html>
