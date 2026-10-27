@@ -1,9 +1,9 @@
-FROM node:20-alpine AS deps
+FROM node:22.23.4-alpine AS deps
 WORKDIR /app
 COPY server/package.json server/package-lock.json ./
 RUN npm ci --omit=dev
 
-FROM node:20-alpine
+FROM node:22.23.4-alpine
 RUN addgroup -S app && adduser -S app -G app
 
 ENV NODE_ENV=production \
