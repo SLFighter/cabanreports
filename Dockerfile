@@ -25,10 +25,5 @@ COPY nicks.csv ./nicks.csv
 RUN chown -R app:app /app
 USER app
 
-EXPOSE 3000
-
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget -qO- --spider "http://127.0.0.1:${PORT}/" || exit 1
-
 WORKDIR /app/server
 CMD ["node", "index.js"]
